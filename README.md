@@ -1,0 +1,1 @@
+# NetBox Cloud Pilot Plugin

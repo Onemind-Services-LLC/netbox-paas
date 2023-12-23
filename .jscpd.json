@@ -1,0 +1,7 @@
+{
+  "ignore": [
+    "**/migrations/**",
+    "**/tests/**"
+  ],
+  "threshold": 10
+}
