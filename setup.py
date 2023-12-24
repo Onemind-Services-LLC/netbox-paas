@@ -4,7 +4,7 @@ setup(
     name="netbox-cloud-pilot",
     version="0.0.1",
     description="NetBox Clouds",
-    long_description="Manage important information about Clouds",
+    long_description="Manage NetBox on VAP infrastructure",
     url="https://github.com/Onemind-Services-LLC/netbox-cloud-pilot/",
     download_url="https://github.com/Onemind-Services-LLC/netbox-cloud-pilot/",
     author="Abhimanyu Saharan",
