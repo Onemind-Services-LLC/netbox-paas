@@ -53,6 +53,6 @@ body:
     attributes:
       label: Resolve By
       description: Please specify a date by which you expect this change to be implemented.
-      placeholder: 2021-01-01
+      placeholder: '2021-01-01'
     validations:
       required: true
