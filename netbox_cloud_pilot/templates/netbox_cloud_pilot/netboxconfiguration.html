@@ -108,14 +108,14 @@
                         {% for node_group in object.env_node_groups %}
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="nodegroup{{ forloop.counter }}-heading">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                    <button class="accordion-button collapsed" type="button"
+                                            data-bs-toggle="collapse"
                                             data-bs-target="#nodegroup{{ forloop.counter }}-collapse"
                                             aria-expanded="false"
                                             aria-controls="nodegroup{{ forloop.counter }}-collapse">
                                         {{ node_group.displayName|default:node_group.name|title }}
                                     </button>
                                 </h2>
-
                             </div>
                             <div id="nodegroup{{ forloop.counter }}-collapse" class="accordion-collapse collapse"
                                  aria-labelledby="nodegroup{{ forloop.counter }}-heading" data-bs-parent="#nodegroup">
@@ -144,6 +144,19 @@
                                             <td>{{ node_group.features|join:", "|title|placeholder }}</td>
                                         </tr>
                                     </table>
+                                    <div class="noprint text-end">
+                                        <form
+                                                action="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_logs' pk=object.pk %}"
+                                                method="post"
+                                                target="_blank"
+                                        >
+                                            {% csrf_token %}
+                                            <input type="hidden" name="node_id" value="{{ node_group.node.id }}">
+                                            <button type="submit" class="btn btn-sm btn-primary">
+                                                <i class="mdi mdi-file-document-outline"></i> Logs
+                                            </button>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
                         {% endfor %}

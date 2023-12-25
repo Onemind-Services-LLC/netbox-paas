@@ -1,5 +1,4 @@
 import logging
-
 from functools import lru_cache
 
 from django.core.exceptions import ValidationError
@@ -108,10 +107,48 @@ class NetBoxConfiguration(PrimaryModel):
         """
         Return information about the environment.
         """
-        return sorted(
+        node_groups = sorted(
             self._env().get("nodeGroups", {}),
             key=lambda x: x.get("displayName", x.get("name")),
         )
+
+        # For each node group, add the related nodes
+        for node_group in node_groups:
+            node_group["node"] = self.env_nodes(node_group["name"], is_master=True)
+
+        return node_groups
+
+    def env_nodes(self, node_group, is_master=True):
+        """
+        Return information about the environment nodes.
+
+        :param node_group: The node group to filter by.
+        :param is_master: Whether to filter by master nodes.
+        """
+        nodes = self._env().get("nodes", {})
+        group_nodes = []
+        for node in nodes:
+            if node.get("nodeGroup") == node_group:
+                if is_master and node.get('ismaster'):
+                    # Master can only be one
+                    return node
+
+                group_nodes.append(node)
+
+        return group_nodes
+
+    def env_node(self, node_id):
+        """
+        Return information about the environment node.
+        """
+        node_id = int(node_id)
+
+        nodes = self._env().get("nodes", {})
+        for node in nodes:
+            if node.get("id") == node_id:
+                return node
+
+        return {}
 
     def _env_vars(self, variables):
         """
@@ -158,3 +195,10 @@ class NetBoxConfiguration(PrimaryModel):
     @property
     def admin_url(self):
         return JELASTIC_API
+
+    def read_node_log(self, node_id, path="/var/log/run.log"):
+        return self._jelastic().environment.Control.ReadLog(
+            env_name=self.env_name,
+            node_id=node_id,
+            path=path,
+        ).get('body', '')
