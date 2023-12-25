@@ -39,7 +39,7 @@ class NetBoxConfiguration(PrimaryModel):
         verbose_name_plural = "NetBox Configurations"
 
     def __str__(self):
-        return self.env_info().get("displayName", self.env_name)
+        return self.env_name
 
     def get_absolute_url(self):
         return reverse("plugins:netbox_cloud_pilot:netboxconfiguration", args=[self.pk])
@@ -56,10 +56,10 @@ class NetBoxConfiguration(PrimaryModel):
         if "." in self.env_name:
             raise ValidationError("Environment name must not contain dots.")
 
-        # Ensure the provided env_name exists
         try:
-            self._env()
-        except Exception as e:
+            # Ensure the provided env_name exists
+            self._jelastic().environment.Control.GetEnvInfo(env_name=self.env_name)
+        except JelasticApiError as e:
             raise ValidationError(e)
 
     def _jelastic(self):

@@ -1,6 +1,8 @@
+from django.shortcuts import redirect
+
 from netbox.views import generic
 from utilities.views import register_model_view
-from . import forms, models, tables
+from . import forms, models
 
 
 @register_model_view(models.NetBoxConfiguration)
@@ -10,7 +12,12 @@ class NetBoxConfigurationView(generic.ObjectView):
 
 class NetBoxConfigurationListView(generic.ObjectListView):
     queryset = models.NetBoxConfiguration.objects.all()
-    table = tables.NetBoxConfigurationTable
+
+    def get(self, request):
+        if obj := models.NetBoxConfiguration.objects.first():
+            return redirect("plugins:netbox_cloud_pilot:netboxconfiguration", pk=obj.pk)
+
+        return redirect("plugins:netbox_cloud_pilot:netboxconfiguration_add")
 
 
 @register_model_view(models.NetBoxConfiguration, "edit")
