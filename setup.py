@@ -11,7 +11,7 @@ setup(
     author_email="asaharan@onemindservices.com",
     maintainer="Prince Kumar",
     maintainer_email="pkumar@onemindservices.com",
-    install_requires=[],
+    install_requires=["py-jelastic<0.1.0"],
     packages=find_packages(),
     include_package_data=True,
     zip_safe=False,

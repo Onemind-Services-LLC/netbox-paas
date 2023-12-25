@@ -1,0 +1,189 @@
+{% extends 'generic/object.html' %}
+
+{% block content %}
+    <div class="row mb-3">
+        <div class="col col-md-6">
+            <div class="card">
+                <h5 class="card-header">Overview</h5>
+                <div class="card-body">
+                    <table class="table table-hover attr-table">
+                        <tr>
+                            <th scope="row">Environment Name</th>
+                            <td>{{ object.env_name }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Description</th>
+                            <td>{{ object.description|placeholder }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Infrastructure Access</th>
+                            <td><a href="{{ object.admin_url }}" target="_blank">{{ object.admin_url }}</a></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col col-md-6">
+            {% include 'inc/panels/custom_fields.html' %}
+            {% include 'inc/panels/tags.html' %}
+            {% include 'inc/panels/comments.html' %}
+        </div>
+    </div>
+    <div class="row">
+        <div class="col col-md-6">
+            <div class="card">
+                <h5 class="card-header">Environment Overview</h5>
+                <div class="card-body">
+                    <table class="table table-hover attr-table">
+                        <tr>
+                            <th scope="row">Display Name</th>
+                            <td>{{ object.env_info.displayName }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Built-in SSL</th>
+                            <td>
+                                {% if object.env_info.sslstate %}
+                                    <span class="text-success">Enabled</span>
+                                {% else %}
+                                    <span class="text-danger">Disabled</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Created On</th>
+                            <td>{{ object.env_info.createdOn }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Firewall</th>
+                            <td>
+                                {% if object.env_info.isFirewallEnabled %}
+                                    <span class="text-success">Enabled</span>
+                                {% else %}
+                                    <span class="text-danger">Disabled</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Host Group</th>
+                            <td>{{ object.env_info.hostGroup.displayName|title }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col col-md-6">
+            <div class="card">
+                <h5 class="card-header">NetBox Admin Access</h5>
+                <div class="card-body">
+                    <table class="table table-hover attr-table">
+                        <tr>
+                            <th scope="row">URL</th>
+                            <td>
+                                <a href="{{ object.netbox_admin.url }}" target="_blank">
+                                    {{ object.netbox_admin.url }}
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Superuser Email</th>
+                            <td>{{ object.netbox_admin.SUPERUSER_EMAIL }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Superuser Username</th>
+                            <td>{{ object.netbox_admin.SUPERUSER_NAME }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Superuser Password</th>
+                            <td>{{ object.netbox_admin.SUPERUSER_PASSWORD }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col col-md-6">
+            <div class="card">
+                <h5 class="card-header">Node Groups</h5>
+                <div class="card-body">
+                    <div class="accordion" id="nodegroup">
+                        {% for node_group in object.env_node_groups %}
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="nodegroup{{ forloop.counter }}-heading">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                            data-bs-target="#nodegroup{{ forloop.counter }}-collapse"
+                                            aria-expanded="false"
+                                            aria-controls="nodegroup{{ forloop.counter }}-collapse">
+                                        {{ node_group.displayName|default:node_group.name|title }}
+                                    </button>
+                                </h2>
+
+                            </div>
+                            <div id="nodegroup{{ forloop.counter }}-collapse" class="accordion-collapse collapse"
+                                 aria-labelledby="nodegroup{{ forloop.counter }}-heading" data-bs-parent="#nodegroup">
+                                <div class="accordion-body">
+                                    <table class="table table-hover">
+                                        <tr>
+                                            <th scope="row">Type</th>
+                                            <td>{{ node_group.templateType|title }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row">Scaling Mode</th>
+                                            <td>{{ node_group.scalingMode|title }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row">SLB Access</th>
+                                            <td>
+                                                {% if node_group.isSLBAccessEnabled %}
+                                                    <span class="text-success">Enabled</span>
+                                                {% else %}
+                                                    <span class="text-danger">Disabled</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row">Features</th>
+                                            <td>{{ node_group.features|join:", "|title|placeholder }}</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col col-md-6">
+            <div class="card">
+                <h5 class="card-header">NetBox Settings</h5>
+                <div class="card-body">
+                    <div class="accordion" id="netbox-settings">
+                        {% for heading, setting in object.netbox_settings.items %}
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="setting{{ forloop.counter }}-heading">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                            data-bs-target="#setting{{ forloop.counter }}-collapse"
+                                            aria-expanded="false"
+                                            aria-controls="setting{{ forloop.counter }}-collapse">
+                                        {{ heading|title }}
+                                    </button>
+                                </h2>
+                            </div>
+                            <div id="setting{{ forloop.counter }}-collapse" class="accordion-collapse collapse"
+                                 aria-labelledby="setting{{ forloop.counter }}-heading" data-bs-parent="#setting">
+                                <div class="accordion-body">
+                                    <table class="table table-hover">
+                                        {% for key, value in setting.items %}
+                                            <tr>
+                                                <th scope="row">{{ key }}</th>
+                                                <td>{{ value|placeholder }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </table>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
