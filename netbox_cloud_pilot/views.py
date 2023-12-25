@@ -1,9 +1,11 @@
+from django.contrib import messages
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.shortcuts import redirect, get_object_or_404, render
+from django.urls import reverse
 from django.views.generic import View
 
 from netbox.views import generic
-from utilities.views import register_model_view
+from utilities.views import register_model_view, GetReturnURLMixin
 from . import forms, models
 
 
@@ -54,5 +56,52 @@ class NetBoxNodeLog(PermissionRequiredMixin, View):
                 "object": instance,
                 "node": node,
                 "logs": logs,
+            },
+        )
+
+
+@register_model_view(models.NetBoxConfiguration, "settings")
+class NetBoxSettingsView(PermissionRequiredMixin, GetReturnURLMixin, View):
+    def get_permission_required(self):
+        return ["netbox_cloud_pilot.change_netboxconfiguration"]
+
+    def get(self, request, *args, **kwargs):
+        obj = get_object_or_404(models.NetBoxConfiguration, pk=kwargs["pk"])
+        form = forms.NetBoxSettingsForm(initial=obj.netbox_settings)
+
+        return render(
+            request,
+            "generic/object_edit.html",
+            {
+                "model": models.NetBoxConfiguration,
+                "object": obj,
+                "form": form,
+                "return_url": reverse(
+                    "plugins:netbox_cloud_pilot:netboxconfiguration",
+                    kwargs={"pk": obj.pk},
+                ),
+            },
+        )
+
+    def post(self, request, *args, **kwargs):
+        obj = get_object_or_404(models.NetBoxConfiguration, pk=kwargs["pk"])
+
+        form = forms.NetBoxSettingsForm(request.POST)
+        if form.is_valid():
+            # All keys must be uppercase
+            form_data = {k.upper(): v for k, v in form.cleaned_data.items()}
+            # Call Jelastic to apply the ENV_VARs on all NetBox nodes (including workers)
+            obj.apply_settings(form_data)
+            messages.success(request, "Settings applied successfully.")
+            return_url = self.get_return_url(request, obj)
+            return redirect(return_url)
+
+        return render(
+            request,
+            "generic/object_edit.html",
+            {
+                "object": obj,
+                "form": form,
+                "return_url": self.get_return_url(request, obj),
             },
         )

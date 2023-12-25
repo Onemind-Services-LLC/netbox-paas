@@ -206,3 +206,26 @@ class NetBoxConfiguration(PrimaryModel):
             )
             .get("body", "")
         )
+
+    def apply_settings(self, data):
+        """
+        Apply the settings to the environment.
+        """
+        # Find all NetBox node groups that starts with `cp`
+        node_groups = self.env_node_groups()
+
+        for node_group in node_groups:
+            group_name = node_group.get("name")
+
+            if group_name.startswith("cp"):
+                self._jelastic().environment.Control.AddContainerEnvVars(
+                    env_name=self.env_name,
+                    node_group=group_name,
+                    vars=data,
+                )
+
+                # Restart node
+                self._jelastic().environment.Control.RestartNodes(
+                    env_name=self.env_name,
+                    node_group=group_name,
+                )
