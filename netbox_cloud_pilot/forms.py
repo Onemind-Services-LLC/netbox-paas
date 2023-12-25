@@ -9,6 +9,22 @@ from .models import *
 __all__ = ("NetBoxConfigurationForm", "NetBoxSettingsForm")
 
 
+def create_fieldset():
+    """
+    Create a fieldset from a dict of settings.
+    """
+    fieldset = ()
+
+    for section, settings in NETBOX_SETTINGS.items():
+        fields = []
+        for setting in settings:
+            for key, value in setting.items():
+                fields.append(key.lower())
+        fieldset += ((section, fields),)
+
+    return fieldset
+
+
 class NetBoxConfigurationForm(NetBoxModelForm):
     key = forms.CharField(
         help_text="Jelastic API token where the NetBox instance is running.",
@@ -27,25 +43,29 @@ class NetBoxConfigurationForm(NetBoxModelForm):
 
 
 class NetBoxSettingsForm(BootstrapMixin, forms.Form):
-    fieldsets = tuple(
-        (key.capitalize(), tuple(v.lower() for v in value))
-        for key, value in NETBOX_SETTINGS.items()
-    )
+    fieldsets = create_fieldset()
 
     class Meta:
         fields = [
-            item.lower() for sublist in NETBOX_SETTINGS.values() for item in sublist
+            key.lower()
+            for value in NETBOX_SETTINGS.values()
+            for v in value
+            for key in v
         ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # Dynamically create fields for each setting
-        for key, value in NETBOX_SETTINGS.items():
-            for setting in value:
-                self.fields[setting.lower()] = forms.CharField(
-                    label=setting,
-                    required=False,
-                    widget=forms.TextInput(attrs={"class": "form-control"}),
-                    initial=kwargs.get("initial", {}).get(key, {}).get(setting, None),
-                )
+        for _, settings in kwargs.get("initial", {}).items():
+            for setting in settings:
+                for key, value in setting.items():
+                    field_type = value.pop("field_type", "TextInput")
+                    placeholder = value.pop("placeholder", None)
+
+                    self.fields[key.lower()] = forms.CharField(
+                        **value,
+                        widget=getattr(forms, field_type)(
+                            attrs={"placeholder": placeholder, "class": "form-control"}
+                        ),
+                    )

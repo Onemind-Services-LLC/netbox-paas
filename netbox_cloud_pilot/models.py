@@ -155,11 +155,17 @@ class NetBoxConfiguration(PrimaryModel):
         Return a dictionary of environment variables for the environment.
         """
         var = {}
-        container_var = self._env_var_by_group(NODE_GROUP_CP).get("object", {})
-        for key in variables:
-            var[key] = getattr(get_config(), key, container_var.get(key, ""))
+        for variable in variables:
+            var[variable] = self._env_var(variable)
 
         return var
+
+    def _env_var(self, variable):
+        """
+        Returns the value of a single environment variable for the environment.
+        """
+        container_var = self._env_var_by_group(NODE_GROUP_CP).get("object", {})
+        return getattr(get_config(), variable, container_var.get(variable, ""))
 
     @property
     def netbox_admin(self):
@@ -185,10 +191,15 @@ class NetBoxConfiguration(PrimaryModel):
         """
         Return the environment variable for the `NODE_GROUP_CP` node group.
         """
-        config = {key: {} for key in NETBOX_SETTINGS.keys()}
+        config = {}
 
-        for key, value in NETBOX_SETTINGS.items():
-            config[key].update(self._env_vars(value))
+        for section, settings in NETBOX_SETTINGS.items():
+            config[section] = []
+            for setting in settings:
+                for key, value in setting.items():
+                    config[section].append(
+                        {key: {**value, "initial": self._env_var(key)}}
+                    )
 
         return config
 
@@ -211,6 +222,15 @@ class NetBoxConfiguration(PrimaryModel):
         """
         Apply the settings to the environment.
         """
+        # Pop any values that are not set in the data
+        remove_data = []
+        for key, value in data.items():
+            if not value and value is not False:
+                remove_data.append(key)
+
+        for key in remove_data:
+            data.pop(key)
+
         # Find all NetBox node groups that starts with `cp`
         node_groups = self.env_node_groups()
 
@@ -218,6 +238,10 @@ class NetBoxConfiguration(PrimaryModel):
             group_name = node_group.get("name")
 
             if group_name.startswith("cp"):
+                self._jelastic().environment.Control.RemoveContainerEnvVars(
+                    env_name=self.env_name, node_group=group_name, vars=remove_data
+                )
+
                 self._jelastic().environment.Control.AddContainerEnvVars(
                     env_name=self.env_name,
                     node_group=group_name,

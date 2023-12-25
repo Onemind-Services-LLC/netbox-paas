@@ -1,4 +1,23 @@
 {% extends 'generic/object.html' %}
+{% load buttons %}
+{% load perms %}
+
+{% block controls %}
+    <div class="controls">
+        <div class="control-group">
+            {% if perms.netbox_cloud_pilot.change_netboxconfiguration %}
+                <a href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_settings' pk=object.pk %}"
+                   class="btn btn-sm btn-cyan">
+                    <span class="mdi mdi-pencil" aria-hidden="true"></span> Edit NetBox Settings
+                </a>
+            {% endif %}
+
+            {% if request.user|can_change:object %}
+                {% edit_button object %}
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
 
 {% block content %}
     <div class="row mb-3">
@@ -23,13 +42,6 @@
                 </div>
             </div>
         </div>
-        <div class="col col-md-6">
-            {% include 'inc/panels/custom_fields.html' %}
-            {% include 'inc/panels/tags.html' %}
-            {% include 'inc/panels/comments.html' %}
-        </div>
-    </div>
-    <div class="row">
         <div class="col col-md-6">
             <div class="card">
                 <h5 class="card-header">Environment Overview</h5>
@@ -157,40 +169,6 @@
                                             </button>
                                         </form>
                                     </div>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col col-md-6">
-            <div class="card">
-                <h5 class="card-header">NetBox Settings</h5>
-                <div class="card-body">
-                    <div class="accordion" id="netbox-settings">
-                        {% for heading, setting in object.netbox_settings.items %}
-                            <div class="accordion-item">
-                                <h2 class="accordion-header" id="setting{{ forloop.counter }}-heading">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                            data-bs-target="#setting{{ forloop.counter }}-collapse"
-                                            aria-expanded="false"
-                                            aria-controls="setting{{ forloop.counter }}-collapse">
-                                        {{ heading|title }}
-                                    </button>
-                                </h2>
-                            </div>
-                            <div id="setting{{ forloop.counter }}-collapse" class="accordion-collapse collapse"
-                                 aria-labelledby="setting{{ forloop.counter }}-heading" data-bs-parent="#setting">
-                                <div class="accordion-body">
-                                    <table class="table table-hover">
-                                        {% for key, value in setting.items %}
-                                            <tr>
-                                                <th scope="row">{{ key }}</th>
-                                                <td>{{ value|placeholder }}</td>
-                                            </tr>
-                                        {% endfor %}
-                                    </table>
                                 </div>
                             </div>
                         {% endfor %}

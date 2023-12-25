@@ -30,11 +30,6 @@ class NetBoxConfigurationEditView(generic.ObjectEditView):
     form = forms.NetBoxConfigurationForm
 
 
-@register_model_view(models.NetBoxConfiguration, "delete")
-class NetBoxConfigurationDeleteView(generic.ObjectDeleteView):
-    queryset = models.NetBoxConfiguration.objects.all()
-
-
 @register_model_view(models.NetBoxConfiguration, "logs")
 class NetBoxNodeLog(PermissionRequiredMixin, View):
     def get_permission_required(self):
@@ -86,7 +81,7 @@ class NetBoxSettingsView(PermissionRequiredMixin, GetReturnURLMixin, View):
     def post(self, request, *args, **kwargs):
         obj = get_object_or_404(models.NetBoxConfiguration, pk=kwargs["pk"])
 
-        form = forms.NetBoxSettingsForm(request.POST)
+        form = forms.NetBoxSettingsForm(request.POST, initial=obj.netbox_settings)
         if form.is_valid():
             # All keys must be uppercase
             form_data = {k.upper(): v for k, v in form.cleaned_data.items()}
