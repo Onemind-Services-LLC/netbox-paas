@@ -129,7 +129,7 @@ class NetBoxConfiguration(PrimaryModel):
         group_nodes = []
         for node in nodes:
             if node.get("nodeGroup") == node_group:
-                if is_master and node.get('ismaster'):
+                if is_master and node.get("ismaster"):
                     # Master can only be one
                     return node
 
@@ -155,7 +155,7 @@ class NetBoxConfiguration(PrimaryModel):
         Return a dictionary of environment variables for the environment.
         """
         var = {}
-        container_var = self._env_var_by_group(NODE_GROUP_CP).get('object', {})
+        container_var = self._env_var_by_group(NODE_GROUP_CP).get("object", {})
         for key in variables:
             var[key] = getattr(get_config(), key, container_var.get(key, ""))
 
@@ -197,8 +197,12 @@ class NetBoxConfiguration(PrimaryModel):
         return JELASTIC_API
 
     def read_node_log(self, node_id, path="/var/log/run.log"):
-        return self._jelastic().environment.Control.ReadLog(
-            env_name=self.env_name,
-            node_id=node_id,
-            path=path,
-        ).get('body', '')
+        return (
+            self._jelastic()
+            .environment.Control.ReadLog(
+                env_name=self.env_name,
+                node_id=node_id,
+                path=path,
+            )
+            .get("body", "")
+        )

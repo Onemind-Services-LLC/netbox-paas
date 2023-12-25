@@ -47,8 +47,12 @@ class NetBoxNodeLog(PermissionRequiredMixin, View):
 
         node = instance.env_node(node_id)
         logs = instance.read_node_log(node_id)
-        return render(request, "netbox_cloud_pilot/nodelogs.html", {
-            'object': instance,
-            'node': node,
-            'logs': logs,
-        })
+        return render(
+            request,
+            "netbox_cloud_pilot/nodelogs.html",
+            {
+                "object": instance,
+                "node": node,
+                "logs": logs,
+            },
+        )

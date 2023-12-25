@@ -68,15 +68,9 @@ NETBOX_SETTINGS = {
         "LOGIN_REQUIRED",
         "LOGIN_TIMEOUT",
         "SECURE_SSL_REDIRECT",
-
     ],
-    "remoteauth": [
-        "REMOTE_AUTH_ENABLED"
-    ],
-    "data": [
-        "CUSTOM_VALIDATORS",
-        "FIELD_CHOICES"
-    ],
+    "remoteauth": ["REMOTE_AUTH_ENABLED"],
+    "data": ["CUSTOM_VALIDATORS", "FIELD_CHOICES"],
     "default": [
         "DEFAULT_DASHBOARD",
         "DEFAULT_USER_PREFERENCES",
@@ -85,12 +79,9 @@ NETBOX_SETTINGS = {
         "POWERFEED_DEFAULT_MAX_UTILIZATION",
         "POWERFEED_DEFAULT_VOLTAGE",
         "RACK_ELEVATION_DEFAULT_UNIT_HEIGHT",
-        "RACK_ELEVATION_DEFAULT_UNIT_WIDTH"
+        "RACK_ELEVATION_DEFAULT_UNIT_WIDTH",
     ],
-    "plugins": [
-        "PLUGINS",
-        "PLUGINS_CONFIG"
-    ],
+    "plugins": ["PLUGINS", "PLUGINS_CONFIG"],
     "datetime": [
         "DATETIME_FORMAT",
         "DATE_FORMAT",
@@ -131,7 +122,7 @@ NETBOX_SETTINGS = {
         "HOUSEKEEPING_INTERVAL",
         "LOGLEVEL",
         "MAX_DB_WAIT_TIME",
-    ]
+    ],
 }
 
 NETBOX_SUPERUSER_SETTINGS = ["SUPERUSER_NAME", "SUPERUSER_EMAIL", "SUPERUSER_PASSWORD"]
