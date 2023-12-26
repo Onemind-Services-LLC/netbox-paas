@@ -377,17 +377,27 @@ class NetBoxDBBackup(ChangeLoggedModel):
             search={'nodeType': 'postgresql', 'app_id': app_id},
         ).get('apps', [])
 
-        for addon in addons:
-            if addon.get('app_id') == app_id and addon.get('isInstalled'):
-                return addon
+        addon = None
 
-        # Install the addon
-        jc.marketplace.App.InstallAddon(
-            env_name=self.netbox_env.env_name,
-            app_id=app_id,
-            node_group=NODE_GROUP_SQLDB,
-            settings=settings
-        )
+        for app in addons:
+            if app.get('app_id') == app_id and app.get('isInstalled'):
+                addon = app
+                break
+
+        if addon is None:
+            # Install the addon
+            jc.marketplace.App.InstallAddon(
+                env_name=self.netbox_env.env_name,
+                app_id=app_id,
+                node_group=NODE_GROUP_SQLDB,
+                settings=settings
+            )
+        else:
+            jc.marketplace.Installation.ExecuteAction(
+                app_unique_name=addon.get('uniqueName'),
+                action='configure',
+                params=settings
+            )
 
     def uninstall_addon(self, app_id='db-backup'):
         # Check if the addon is already installed
@@ -419,7 +429,7 @@ class NetBoxDBBackup(ChangeLoggedModel):
     def save(self, *args, **kwargs):
         # Install the addon
         self.install_addon(settings={
-            'scheduleType': 1,
+            'scheduleType': 3,
             'cronTime': self.cron,
             'storageName': self.netbox_env.env_name_storage,
             'backupCount': self.keep_backups,
