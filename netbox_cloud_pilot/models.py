@@ -365,10 +365,7 @@ class NetBoxDBBackup(ChangeLoggedModel):
     def cron(self):
         return ' '.join(croniter(self.crontab).expressions)
 
-    def install_addon(self, app_id="db-backup", settings=None):
-        """
-        Installs the Database backup/restore addon on the PostgreSQL application.
-        """
+    def get_installed_app(self, app_id):
         # Check if the addon is already installed
         jc = self.netbox_env._jelastic()
         addons = jc.marketplace.App.GetAddonList(
@@ -383,6 +380,16 @@ class NetBoxDBBackup(ChangeLoggedModel):
             if app.get('app_id') == app_id and app.get('isInstalled'):
                 addon = app
                 break
+
+        return addon
+
+    def install_addon(self, app_id="db-backup", settings=None):
+        """
+        Installs the Database backup/restore addon on the PostgreSQL application.
+        """
+        # Check if the addon is already installed
+        jc = self.netbox_env._jelastic()
+        addon = self.get_installed_app(app_id)
 
         if addon is None:
             # Install the addon
@@ -402,20 +409,7 @@ class NetBoxDBBackup(ChangeLoggedModel):
     def uninstall_addon(self, app_id='db-backup'):
         # Check if the addon is already installed
         jc = self.netbox_env._jelastic()
-        addons = jc.marketplace.App.GetAddonList(
-            envName=self.netbox_env.env_name,
-            node_group=NODE_GROUP_SQLDB,
-            search={'nodeType': 'postgresql', 'app_id': app_id},
-        ).get('apps', [])
-
-        db_backup_addon = None
-
-        for addon in addons:
-            if addon.get('app_id') == app_id:
-                if not addon.get('isInstalled'):
-                    return addon
-                db_backup_addon = addon
-                break
+        db_backup_addon = self.get_installed_app(app_id)
 
         # Get environment info
         env_info = self.netbox_env.env_info()
@@ -434,7 +428,7 @@ class NetBoxDBBackup(ChangeLoggedModel):
             'storageName': self.netbox_env.env_name_storage,
             'backupCount': self.keep_backups,
             'dbuser': 'webadmin',
-            'dbpass': self.netbox_env._env_var('DB_PASSWORD'),
+            'dbpass': getattr(self, '_db_password', ''),
         })
 
         super().save(*args, **kwargs)
@@ -444,3 +438,13 @@ class NetBoxDBBackup(ChangeLoggedModel):
         self.uninstall_addon()
 
         super().delete(*args, **kwargs)
+
+    def backup(self):
+        # Execute backup
+        jc = self.netbox_env._jelastic()
+        app = self.get_installed_app('db-backup')
+
+        jc.marketplace.Installation.ExecuteAction(
+            app_unique_name=app.get('uniqueName'),
+            action='backup',
+        )

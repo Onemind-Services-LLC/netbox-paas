@@ -169,8 +169,39 @@ class NetBoxBackupStorageForm(BootstrapMixin, forms.Form):
 
 
 class NetBoxDBBackupForm(NetBoxModelForm):
+    db_password = forms.CharField(
+        label="Database Password",
+        help_text="Password for the <strong>webadmin</strong> user. You will find this in your email.",
+        required=False,
+    )
+
     tags = None
+
+    fieldsets = (
+        (None, ("netbox_env", "db_password")),
+        ("Backup", ("crontab", "keep_backups")),
+    )
 
     class Meta:
         model = NetBoxDBBackup
-        fields = ["netbox_env", "crontab", "keep_backups"]
+        fields = ["netbox_env", "crontab", "keep_backups", "db_password"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if self.instance:
+            # Fetch the database password from the addon settings
+            app = self.instance.get_installed_app('db-backup')
+            settings = app.get('settings', {}).get('main', {}).get('data', {})
+            self.fields['db_password'].initial = settings.get('dbpass')
+
+    def clean(self):
+        super().clean()
+
+        if db_password := self.cleaned_data.get('db_password'):
+            self.instance._db_password = db_password
+
+        if not self.instance.pk and not db_password:
+            raise ValidationError(
+                {"db_password": "This field is required when adding a new backup."}
+            )

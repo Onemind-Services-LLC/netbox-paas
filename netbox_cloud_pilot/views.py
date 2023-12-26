@@ -6,6 +6,7 @@ from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.shortcuts import redirect, get_object_or_404, render
 from django.urls import reverse
 from django.views.generic import View
+from jelastic.api.exceptions import JelasticApiError
 
 from netbox.views import generic
 from utilities.views import register_model_view, GetReturnURLMixin
@@ -213,3 +214,25 @@ class NetBoxDBBackupEditView(generic.ObjectEditView):
 @register_model_view(models.NetBoxDBBackup, "delete")
 class NetBoxDBBackupDeleteView(generic.ObjectDeleteView):
     queryset = models.NetBoxDBBackup.objects.all()
+
+
+@register_model_view(models.NetBoxDBBackup, "backup")
+class NetBoxDBBackupBackupView(PermissionRequiredMixin, View):
+    def get_permission_required(self):
+        return ["netbox_cloud_pilot.change_netboxdbbackup"]
+
+    def post(self, request, pk):
+        """
+        Create a new backup.
+        """
+        instance = get_object_or_404(models.NetBoxDBBackup, pk=pk)
+
+        try:
+            instance.backup()
+            messages.success(request, "Backup created successfully.")
+        except JelasticApiError as e:
+            messages.error(request, e)
+
+        return redirect(
+            "plugins:netbox_cloud_pilot:netboxdbbackup", pk=instance.pk
+        )
