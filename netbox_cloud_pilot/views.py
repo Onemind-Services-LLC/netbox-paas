@@ -10,7 +10,7 @@ from jelastic.api.exceptions import JelasticApiError
 
 from netbox.views import generic
 from utilities.views import register_model_view, GetReturnURLMixin
-from . import forms, models
+from . import forms, models, tables
 
 
 @register_model_view(models.NetBoxConfiguration)
@@ -193,6 +193,13 @@ class NetBoxStorageView(PermissionRequiredMixin, GetReturnURLMixin, View):
 @register_model_view(models.NetBoxDBBackup)
 class NetBoxDBBackupView(generic.ObjectView):
     queryset = models.NetBoxDBBackup.objects.all()
+
+    def get_extra_context(self, request, instance):
+        table = tables.NetBoxBackupsTable(instance.list_backups())
+
+        return {
+            "backup_table": table
+        }
 
 
 class NetBoxDBBackupListView(generic.ObjectListView):

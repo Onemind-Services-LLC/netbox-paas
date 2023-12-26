@@ -1,4 +1,5 @@
 {% extends 'generic/object.html' %}
+{% load render_table from django_tables2 %}
 
 {% block extra_controls %}
     <form method="post">
@@ -18,8 +19,8 @@
                 <div class="card-body">
                     <table class="table table-hover attr-table">
                         <tr>
-                            <th scope="row">Crontab</th>
-                            <td>{{ object.crontab }}</td>
+                            <th scope="row">Cron</th>
+                            <td>{{ object.crontab }} ({{ object.cron }})</td>
                         </tr>
                         <tr>
                             <th scope="row">Keep Backups</th>
@@ -30,6 +31,17 @@
                             <td>{{ object.netbox_env|linkify }}</td>
                         </tr>
                     </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row mb-3">
+        <div class="col col-md-12">
+            <div class="card">
+                <h5 class="card-header">Backups</h5>
+                <div class="card-body table-responsive">
+                    {% render_table backup_table 'inc/table.html' %}
+                    {% include 'inc/paginator.html' with paginator=table.paginator page=backup_table.page %}
                 </div>
             </div>
         </div>

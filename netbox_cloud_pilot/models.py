@@ -1,4 +1,6 @@
 import logging
+import re
+from datetime import datetime
 from functools import lru_cache
 
 from croniter import croniter
@@ -448,3 +450,51 @@ class NetBoxDBBackup(ChangeLoggedModel):
             app_unique_name=app.get('uniqueName'),
             action='backup',
         )
+
+    def list_backups(self):
+        jc = self.netbox_env._jelastic()
+
+        # Get the master node ID of the storage node
+        node_groups = self.netbox_env.env_storage_node_groups()
+        master_node = node_groups[0].get('node')
+
+        result = jc.environment.Control.ExecCmdById(
+            env_name=self.netbox_env.env_name_storage,
+            node_id=master_node.get('id'),
+            command_list=[{"command": "/root/getBackupsAllEnvs.sh"}]
+        )
+
+        backups = json.loads(result.get('responses', [])[0].get('out', '')).get('backups', {})
+        backups = backups.get(self.netbox_env.env_name, [])
+        return [self._parse_backup_name(backup) for backup in backups]
+
+    def _parse_backup_name(self, backup_name):
+        """
+        Parse the backup name and return a dictionary with the values.
+        """
+        # Initial split at the first underscore
+        parts = backup_name.split('_', 1)
+        # Parse the date from the first part
+        date = datetime.strptime(parts[0], '%Y-%m-%d').date()
+
+        # Parse the time from the second part
+        parts = parts[1].split('-', 1)
+        # Parse the time from the first part
+        time = datetime.fromtimestamp(int(parts[0])).time()
+
+        # Combine the date and time
+        date = datetime.combine(date, time)
+
+        # Parse the backup type and the database version
+        if match := re.search(r'(\w+)\((.+)\)', parts[1]):
+            backup_type = match.group(1)
+            db_version = match.group(2).split('-', 1)[1]
+        else:
+            backup_type, db_version = None, None
+
+        return {
+            'name': backup_name,
+            'datetime': date,
+            'backup_type': backup_type,
+            'db_version': db_version,
+        }
