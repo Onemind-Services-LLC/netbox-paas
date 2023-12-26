@@ -255,7 +255,13 @@ class NetBoxConfiguration(PrimaryModel):
                 )
 
                 # Restart node
-                self._jelastic().environment.Control.RestartNodes(
-                    env_name=self.env_name,
-                    node_group=group_name,
-                )
+                self.restart_node_group(node_group=group_name)
+
+    def restart_node_group(self, node_group):
+        """
+        Restart the node group.
+        """
+        self._jelastic().environment.Control.RestartNodes(
+            env_name=self.env_name,
+            node_group=node_group,
+        )

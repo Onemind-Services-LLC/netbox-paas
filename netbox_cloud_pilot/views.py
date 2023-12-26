@@ -100,3 +100,19 @@ class NetBoxSettingsView(PermissionRequiredMixin, GetReturnURLMixin, View):
                 "return_url": self.get_return_url(request, obj),
             },
         )
+
+
+@register_model_view(models.NetBoxConfiguration, "restart")
+class NetBoxRestartView(PermissionRequiredMixin, View):
+    def get_permission_required(self):
+        return ["netbox_cloud_pilot.change_netboxconfiguration"]
+
+    def post(self, request, pk):
+        """
+        Restarts container by node group.
+        """
+        instance = get_object_or_404(models.NetBoxConfiguration, pk=pk)
+        node_group = request.POST.get("node_group")
+        instance.restart_node_group(node_group)
+        messages.success(request, "Restarted successfully.")
+        return redirect("plugins:netbox_cloud_pilot:netboxconfiguration", pk=instance.pk)

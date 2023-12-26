@@ -158,13 +158,26 @@
                                     </table>
                                     <div class="noprint text-end">
                                         <form
-                                                action="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_logs' pk=object.pk %}"
                                                 method="post"
-                                                target="_blank"
                                         >
                                             {% csrf_token %}
                                             <input type="hidden" name="node_id" value="{{ node_group.node.id }}">
-                                            <button type="submit" class="btn btn-sm btn-primary">
+                                            <input type="hidden" name="node_group" value="{{ node_group.name }}">
+
+                                            <button
+                                                    type="submit"
+                                                    class="btn btn-sm btn-danger"
+                                                    formaction="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_restart' pk=object.pk %}"
+                                            >
+                                                <i class="mdi mdi-restart"></i> Restart
+                                            </button>
+
+                                            <button
+                                                    type="submit"
+                                                    class="btn btn-sm btn-primary"
+                                                    formaction="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_logs' pk=object.pk %}"
+
+                                            >
                                                 <i class="mdi mdi-file-document-outline"></i> Logs
                                             </button>
                                         </form>
