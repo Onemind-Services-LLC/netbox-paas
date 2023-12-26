@@ -1,3 +1,6 @@
+import random
+import string
+
 from django.contrib import messages
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.shortcuts import redirect, get_object_or_404, render
@@ -117,3 +120,66 @@ class NetBoxRestartView(PermissionRequiredMixin, View):
         instance.restart_node_group(node_group)
         messages.success(request, "Restarted successfully.")
         return redirect("plugins:netbox_cloud_pilot:netboxconfiguration", pk=instance.pk)
+
+
+@register_model_view(models.NetBoxConfiguration, "backup_storage", path="backup-storage")
+class NetBoxStorageView(PermissionRequiredMixin, GetReturnURLMixin, View):
+    def get_permission_required(self):
+        return ["netbox_cloud_pilot.view_netboxconfiguration"]
+
+    def get(self, request, *args, **kwargs):
+        obj = get_object_or_404(models.NetBoxConfiguration, pk=kwargs["pk"])
+        form = forms.NetBoxBackupStorageForm()
+
+        return render(
+            request,
+            "generic/object_edit.html",
+            {
+                "model": models.NetBoxConfiguration,
+                "object": obj,
+                "form": form,
+                "return_url": reverse(
+                    "plugins:netbox_cloud_pilot:netboxconfiguration",
+                    kwargs={"pk": obj.pk},
+                ),
+            },
+        )
+
+    def post(self, request, *args, **kwargs):
+        obj = get_object_or_404(models.NetBoxConfiguration, pk=kwargs["pk"])
+
+        form = forms.NetBoxBackupStorageForm(request.POST)
+        if form.is_valid():
+            # Generate a random env name
+            env_name = "env-"
+            env_name += "".join([random.choice(string.digits) for _ in range(7)])
+
+            # Deploy a new environment for backup-storage
+            jc = obj._jelastic()
+            jc.marketplace.App.Install(
+                id="wp-restore",
+                env_name=env_name,
+                settings={
+                    "customName": form.cleaned_data["deployment"],
+                    "storageNodesCount": form.cleaned_data["node_count"],
+                    "diskspace": form.cleaned_data["storage_size"],
+                },
+                display_name=form.cleaned_data["display_name"],
+                region=form.cleaned_data["region"],
+                skip_email=True
+            )
+            obj.env_name_storage = env_name
+            obj.save()
+
+            return_url = self.get_return_url(request, obj)
+            return redirect(return_url)
+
+        return render(
+            request,
+            "generic/object_edit.html",
+            {
+                "object": obj,
+                "form": form,
+                "return_url": self.get_return_url(request, obj),
+            },
+        )

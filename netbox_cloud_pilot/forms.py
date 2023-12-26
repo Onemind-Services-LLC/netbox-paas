@@ -1,4 +1,5 @@
 from django import forms
+from django.forms import ValidationError
 
 from netbox.forms import NetBoxModelForm
 from utilities.forms import BootstrapMixin
@@ -6,7 +7,7 @@ from utilities.forms.fields import CommentField
 from .constants import NETBOX_SETTINGS
 from .models import *
 
-__all__ = ("NetBoxConfigurationForm", "NetBoxSettingsForm")
+__all__ = ("NetBoxConfigurationForm", "NetBoxSettingsForm", "NetBoxBackupStorageForm")
 
 
 def create_fieldset():
@@ -80,3 +81,82 @@ class NetBoxSettingsForm(BootstrapMixin, forms.Form):
                             attrs={"placeholder": placeholder, "class": "form-control"}
                         ),
                     )
+
+
+class NetBoxBackupStorageForm(BootstrapMixin, forms.Form):
+    deployment = forms.ChoiceField(
+        choices=(
+            ("standalone", "Standalone"),
+            ("cluster", "Cluster"),
+        )
+    )
+
+    node_count = forms.ChoiceField(
+        choices=(
+            (1, 1),
+            (3, 3),
+            (5, 5),
+            (7, 7)
+        ),
+        initial=1,
+        help_text="Number of nodes in the cluster.",
+        required=False
+    )
+
+    storage_size = forms.IntegerField(
+        label="Storage Size",
+        required=False,
+        help_text="Size of the storage in GB.",
+        initial=10,
+        max_value=200
+    )
+
+    region = forms.ChoiceField(
+        help_text="Region where the storage will be deployed, this can be different from the NetBox instance region."
+    )
+
+    display_name = forms.CharField(
+        label="Display Name",
+        help_text="Display name for the storage.",
+        max_length=50,
+        initial="Backup Storage"
+    )
+
+    fieldsets = (
+        (None, ("display_name", "storage_size", "region")),
+        ("Deployment", ("deployment", "node_count"))
+    )
+
+    class Meta:
+        fields = [
+            "deployment",
+            "node_count",
+            "storage_size",
+            "region",
+            "display_name",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Fetch the region list and build the choices
+        nc = NetBoxConfiguration.objects.first()
+        regions = nc._jelastic().environment.Control.GetRegions().get('array', [])
+        self.fields['region'].choices = [(hard_node_group['uniqueName'], region['displayName']) for region in regions for hard_node_group in region['hardNodeGroups']]
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        if cleaned_data["deployment"] == "cluster":
+            if cleaned_data["node_count"] == '1':
+                raise ValidationError({
+                    "node_count": "Node count must be greater than 1 for a cluster deployment."
+                })
+
+        if cleaned_data["deployment"] == "standalone":
+            if cleaned_data["node_count"] != '1':
+                raise ValidationError({
+                    "node_count": "Node count must be 1 for a standalone deployment."
+                })
+
+        return cleaned_data

@@ -5,11 +5,6 @@
 {% block controls %}
     <div class="controls">
         <div class="control-group">
-            <a href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_plugins' pk=object.pk %}"
-               class="btn btn-sm btn-primary">
-                <span class="mdi mdi-power-plug" aria-hidden="true"></span> Plugins
-            </a>
-
             {% if perms.netbox_cloud_pilot.change_netboxconfiguration %}
                 <a href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_settings' pk=object.pk %}"
                    class="btn btn-sm btn-cyan">
@@ -45,7 +40,15 @@
                         </tr>
                         <tr>
                             <th scope="row">Storage Environment</th>
-                            <td>{{ object.env_name_storage|placeholder }}</td>
+                            <td>
+                                {% if object.env_name_storage %}
+                                    {{ object.env_name_storage }}
+                                {% else %}
+                                    <a href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_backup_storage' pk=object.pk %}" class="btn btn-sm btn-primary">
+                                       <i class="mdi mdi-plus-thick"></i> Add Backup Storage
+                                    </a>
+                                {% endif %}
+                            </td>
                         </tr>
                     </table>
                 </div>
@@ -92,7 +95,7 @@
     {% if object.env_name_storage %}
         <div class="row mb-3">
             <div class="col col-md-6">
-                {% include 'netbox_cloud_pilot/inc/env_info.html' with card_header="NetBox" env_info=object.env_storage_info %}
+                {% include 'netbox_cloud_pilot/inc/env_info.html' with card_header="Storage" env_info=object.env_storage_info %}
             </div>
             <div class="col col-md-6">
                 {% include 'netbox_cloud_pilot/inc/env_node_groups.html' with card_header="Storage" node_groups=object.env_storage_node_groups env_name=object.env_name_storage object=object %}
