@@ -441,34 +441,7 @@ class NetBoxDBBackup(ChangeLoggedModel):
 
         super().delete(*args, **kwargs)
 
-    def backup(self):
-        # Execute backup
-        jc = self.netbox_env._jelastic()
-        app = self.get_installed_app('db-backup')
-
-        jc.marketplace.Installation.ExecuteAction(
-            app_unique_name=app.get('uniqueName'),
-            action='backup',
-        )
-
-    def list_backups(self):
-        jc = self.netbox_env._jelastic()
-
-        # Get the master node ID of the storage node
-        node_groups = self.netbox_env.env_storage_node_groups()
-        master_node = node_groups[0].get('node')
-
-        result = jc.environment.Control.ExecCmdById(
-            env_name=self.netbox_env.env_name_storage,
-            node_id=master_node.get('id'),
-            command_list=[{"command": "/root/getBackupsAllEnvs.sh"}]
-        )
-
-        backups = json.loads(result.get('responses', [])[0].get('out', '')).get('backups', {})
-        backups = backups.get(self.netbox_env.env_name, [])
-        return [self._parse_backup_name(backup) for backup in backups]
-
-    def _parse_backup_name(self, backup_name):
+    def __parse_backup_name(self, backup_name):
         """
         Parse the backup name and return a dictionary with the values.
         """
@@ -498,3 +471,30 @@ class NetBoxDBBackup(ChangeLoggedModel):
             'backup_type': backup_type,
             'db_version': db_version,
         }
+
+    def backup(self):
+        # Execute backup
+        jc = self.netbox_env._jelastic()
+        app = self.get_installed_app('db-backup')
+
+        jc.marketplace.Installation.ExecuteAction(
+            app_unique_name=app.get('uniqueName'),
+            action='backup',
+        )
+
+    def list_backups(self):
+        jc = self.netbox_env._jelastic()
+
+        # Get the master node ID of the storage node
+        node_groups = self.netbox_env.env_storage_node_groups()
+        master_node = node_groups[0].get('node')
+
+        result = jc.environment.Control.ExecCmdById(
+            env_name=self.netbox_env.env_name_storage,
+            node_id=master_node.get('id'),
+            command_list=[{"command": "/root/getBackupsAllEnvs.sh"}]
+        )
+
+        backups = json.loads(result.get('responses', [])[0].get('out', '')).get('backups', {})
+        backups = backups.get(self.netbox_env.env_name, [])
+        return [self.__parse_backup_name(backup) for backup in backups]
