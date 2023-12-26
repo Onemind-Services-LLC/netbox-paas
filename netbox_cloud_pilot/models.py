@@ -1,3 +1,4 @@
+import json
 import logging
 from functools import lru_cache
 
@@ -225,7 +226,12 @@ class NetBoxConfiguration(PrimaryModel):
         # Pop any values that are not set in the data
         remove_data = []
         for key, value in data.items():
-            if not value and value is not False:
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError:
+                pass
+
+            if not value:
                 remove_data.append(key)
 
         for key in remove_data:
