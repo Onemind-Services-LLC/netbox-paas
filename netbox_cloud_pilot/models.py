@@ -360,3 +360,77 @@ class NetBoxDBBackup(ChangeLoggedModel):
             croniter(self.crontab)
         except CroniterError as e:
             raise ValidationError({"crontab": e})
+
+    @property
+    def cron(self):
+        return ' '.join(croniter(self.crontab).expressions)
+
+    def install_addon(self, app_id="db-backup", settings=None):
+        """
+        Installs the Database backup/restore addon on the PostgreSQL application.
+        """
+        # Check if the addon is already installed
+        jc = self.netbox_env._jelastic()
+        addons = jc.marketplace.App.GetAddonList(
+            envName=self.netbox_env.env_name,
+            node_group=NODE_GROUP_SQLDB,
+            search={'nodeType': 'postgresql', 'app_id': app_id},
+        ).get('apps', [])
+
+        for addon in addons:
+            if addon.get('app_id') == app_id and addon.get('isInstalled'):
+                return addon
+
+        # Install the addon
+        jc.marketplace.App.InstallAddon(
+            env_name=self.netbox_env.env_name,
+            app_id=app_id,
+            node_group=NODE_GROUP_SQLDB,
+            settings=settings
+        )
+
+    def uninstall_addon(self, app_id='db-backup'):
+        # Check if the addon is already installed
+        jc = self.netbox_env._jelastic()
+        addons = jc.marketplace.App.GetAddonList(
+            envName=self.netbox_env.env_name,
+            node_group=NODE_GROUP_SQLDB,
+            search={'nodeType': 'postgresql', 'app_id': app_id},
+        ).get('apps', [])
+
+        db_backup_addon = None
+
+        for addon in addons:
+            if addon.get('app_id') == app_id:
+                if not addon.get('isInstalled'):
+                    return addon
+                db_backup_addon = addon
+                break
+
+        # Get environment info
+        env_info = self.netbox_env.env_info()
+
+        jc.marketplace.Installation.Uninstall(
+            app_unique_name=db_backup_addon.get('uniqueName'),
+            target_app_id=env_info.get('appid'),
+            app_template_id=app_id
+        )
+
+    def save(self, *args, **kwargs):
+        # Install the addon
+        self.install_addon(settings={
+            'scheduleType': 1,
+            'cronTime': self.cron,
+            'storageName': self.netbox_env.env_name_storage,
+            'backupCount': self.keep_backups,
+            'dbuser': 'webadmin',
+            'dbpass': self.netbox_env._env_var('DB_PASSWORD'),
+        })
+
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        # Uninstall the addon
+        self.uninstall_addon()
+
+        super().delete(*args, **kwargs)
