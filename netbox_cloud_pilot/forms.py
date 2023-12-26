@@ -35,11 +35,22 @@ class NetBoxConfigurationForm(NetBoxModelForm):
         help_text="Jelastic environment name where the NetBox instance is running.",
     )
 
+    env_name_storage = forms.CharField(
+        label="Environment Name",
+        required=False,
+        help_text="Jelastic environment name where the backup storage is running.",
+    )
+
     comments = CommentField()
+
+    fieldsets = (
+        (None, ("key", "env_name", "description")),
+        ('Backup', ("env_name_storage",)),
+    )
 
     class Meta:
         model = NetBoxConfiguration
-        fields = ("key", "env_name", "description")
+        fields = ("key", "env_name", "description", "env_name_storage")
 
 
 class NetBoxSettingsForm(BootstrapMixin, forms.Form):

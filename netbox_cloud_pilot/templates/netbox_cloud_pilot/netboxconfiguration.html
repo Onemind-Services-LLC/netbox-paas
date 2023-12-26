@@ -5,6 +5,11 @@
 {% block controls %}
     <div class="controls">
         <div class="control-group">
+            <a href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_plugins' pk=object.pk %}"
+               class="btn btn-sm btn-primary">
+                <span class="mdi mdi-power-plug" aria-hidden="true"></span> Plugins
+            </a>
+
             {% if perms.netbox_cloud_pilot.change_netboxconfiguration %}
                 <a href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_settings' pk=object.pk %}"
                    class="btn btn-sm btn-cyan">
@@ -38,46 +43,9 @@
                             <th scope="row">Infrastructure Access</th>
                             <td><a href="{{ object.admin_url }}" target="_blank">{{ object.admin_url }}</a></td>
                         </tr>
-                    </table>
-                </div>
-            </div>
-        </div>
-        <div class="col col-md-6">
-            <div class="card">
-                <h5 class="card-header">Environment Overview</h5>
-                <div class="card-body">
-                    <table class="table table-hover attr-table">
                         <tr>
-                            <th scope="row">Display Name</th>
-                            <td>{{ object.env_info.displayName }}</td>
-                        </tr>
-                        <tr>
-                            <th scope="row">Built-in SSL</th>
-                            <td>
-                                {% if object.env_info.sslstate %}
-                                    <span class="text-success">Enabled</span>
-                                {% else %}
-                                    <span class="text-danger">Disabled</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        <tr>
-                            <th scope="row">Created On</th>
-                            <td>{{ object.env_info.createdOn }}</td>
-                        </tr>
-                        <tr>
-                            <th scope="row">Firewall</th>
-                            <td>
-                                {% if object.env_info.isFirewallEnabled %}
-                                    <span class="text-success">Enabled</span>
-                                {% else %}
-                                    <span class="text-danger">Disabled</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        <tr>
-                            <th scope="row">Host Group</th>
-                            <td>{{ object.env_info.hostGroup.displayName|title }}</td>
+                            <th scope="row">Storage Environment</th>
+                            <td>{{ object.env_name_storage|placeholder }}</td>
                         </tr>
                     </table>
                 </div>
@@ -112,82 +80,23 @@
                 </div>
             </div>
         </div>
+    </div>
+    <div class="row mb-3">
         <div class="col col-md-6">
-            <div class="card">
-                <h5 class="card-header">Node Groups</h5>
-                <div class="card-body">
-                    <div class="accordion" id="nodegroup">
-                        {% for node_group in object.env_node_groups %}
-                            <div class="accordion-item">
-                                <h2 class="accordion-header" id="nodegroup{{ forloop.counter }}-heading">
-                                    <button class="accordion-button collapsed" type="button"
-                                            data-bs-toggle="collapse"
-                                            data-bs-target="#nodegroup{{ forloop.counter }}-collapse"
-                                            aria-expanded="false"
-                                            aria-controls="nodegroup{{ forloop.counter }}-collapse">
-                                        {{ node_group.displayName|default:node_group.name|title }}
-                                    </button>
-                                </h2>
-                            </div>
-                            <div id="nodegroup{{ forloop.counter }}-collapse" class="accordion-collapse collapse"
-                                 aria-labelledby="nodegroup{{ forloop.counter }}-heading" data-bs-parent="#nodegroup">
-                                <div class="accordion-body">
-                                    <table class="table table-hover">
-                                        <tr>
-                                            <th scope="row">Type</th>
-                                            <td>{{ node_group.templateType|title }}</td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">Scaling Mode</th>
-                                            <td>{{ node_group.scalingMode|title }}</td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">SLB Access</th>
-                                            <td>
-                                                {% if node_group.isSLBAccessEnabled %}
-                                                    <span class="text-success">Enabled</span>
-                                                {% else %}
-                                                    <span class="text-danger">Disabled</span>
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">Features</th>
-                                            <td>{{ node_group.features|join:", "|title|placeholder }}</td>
-                                        </tr>
-                                    </table>
-                                    <div class="noprint text-end">
-                                        <form
-                                                method="post"
-                                        >
-                                            {% csrf_token %}
-                                            <input type="hidden" name="node_id" value="{{ node_group.node.id }}">
-                                            <input type="hidden" name="node_group" value="{{ node_group.name }}">
-
-                                            <button
-                                                    type="submit"
-                                                    class="btn btn-sm btn-danger"
-                                                    formaction="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_restart' pk=object.pk %}"
-                                            >
-                                                <i class="mdi mdi-restart"></i> Restart
-                                            </button>
-
-                                            <button
-                                                    type="submit"
-                                                    class="btn btn-sm btn-primary"
-                                                    formaction="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_logs' pk=object.pk %}"
-
-                                            >
-                                                <i class="mdi mdi-file-document-outline"></i> Logs
-                                            </button>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
+            {% include 'netbox_cloud_pilot/inc/env_info.html' with card_header="NetBox" env_info=object.env_info %}
+        </div>
+        <div class="col col-md-6">
+            {% include 'netbox_cloud_pilot/inc/env_node_groups.html' with card_header="NetBox" node_groups=object.env_node_groups env_name=object.env_name object=object %}
         </div>
     </div>
+    {% if object.env_name_storage %}
+        <div class="row mb-3">
+            <div class="col col-md-6">
+                {% include 'netbox_cloud_pilot/inc/env_info.html' with card_header="NetBox" env_info=object.env_storage_info %}
+            </div>
+            <div class="col col-md-6">
+                {% include 'netbox_cloud_pilot/inc/env_node_groups.html' with card_header="Storage" node_groups=object.env_storage_node_groups env_name=object.env_name_storage object=object %}
+            </div>
+        </div>
+    {% endif %}
 {% endblock %}

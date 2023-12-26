@@ -30,8 +30,16 @@ class NetBoxConfiguration(PrimaryModel):
     env_name = models.CharField(
         max_length=255,
         unique=True,
-        validators=[MinLengthValidator(1)],
+        validators=[MinLengthValidator(5)],
         verbose_name="Environment Name",
+    )
+
+    env_name_storage = models.CharField(
+        max_length=255,
+        unique=True,
+        blank=True,
+        validators=[MinLengthValidator(5)],
+        verbose_name="Environment Name Storage",
     )
 
     class Meta:
@@ -62,6 +70,13 @@ class NetBoxConfiguration(PrimaryModel):
         except JelasticApiError as e:
             raise ValidationError(e)
 
+        if self.env_name_storage:
+            try:
+                # Ensure the provided env_name_storage exists
+                self._jelastic().environment.Control.GetEnvInfo(env_name=self.env_name_storage)
+            except JelasticApiError as e:
+                raise ValidationError(e)
+
     def _jelastic(self):
         """
         Return a Jelastic instance for the environment.
@@ -86,47 +101,59 @@ class NetBoxConfiguration(PrimaryModel):
             return {}
 
     @lru_cache(maxsize=1)
-    def _env(self):
+    def _env(self, env_name):
         """
         Return information about the environment.
         """
         try:
             return self._jelastic().environment.Control.GetEnvInfo(
-                env_name=self.env_name,
+                env_name=env_name,
             )
         except JelasticApiError as e:
             logger.error(e)
             return {}
 
-    def env_info(self):
+    def _env_info(self, env_name):
         """
         Return information about the environment.
         """
-        return self._env().get("env", {})
+        return self._env(env_name).get("env", {})
 
-    def env_node_groups(self):
+    def env_info(self):
+        return self._env_info(self.env_name)
+
+    def env_storage_info(self):
+        return self._env_info(self.env_name_storage)
+
+    def _env_node_groups(self, env_name):
         """
         Return information about the environment.
         """
         node_groups = sorted(
-            self._env().get("nodeGroups", {}),
+            self._env(env_name).get("nodeGroups", {}),
             key=lambda x: x.get("displayName", x.get("name")),
         )
 
         # For each node group, add the related nodes
         for node_group in node_groups:
-            node_group["node"] = self.env_nodes(node_group["name"], is_master=True)
+            node_group["node"] = self.env_nodes(env_name, node_group["name"], is_master=True)
 
         return node_groups
 
-    def env_nodes(self, node_group, is_master=True):
+    def env_node_groups(self):
+        return self._env_node_groups(self.env_name)
+
+    def env_storage_node_groups(self):
+        return self._env_node_groups(self.env_name_storage)
+
+    def env_nodes(self, env_name, node_group, is_master=True):
         """
         Return information about the environment nodes.
 
         :param node_group: The node group to filter by.
         :param is_master: Whether to filter by master nodes.
         """
-        nodes = self._env().get("nodes", {})
+        nodes = self._env(env_name).get("nodes", {})
         group_nodes = []
         for node in nodes:
             if node.get("nodeGroup") == node_group:
@@ -138,13 +165,13 @@ class NetBoxConfiguration(PrimaryModel):
 
         return group_nodes
 
-    def env_node(self, node_id):
+    def env_node(self, env_name, node_id):
         """
         Return information about the environment node.
         """
         node_id = int(node_id)
 
-        nodes = self._env().get("nodes", {})
+        nodes = self._env(env_name).get("nodes", {})
         for node in nodes:
             if node.get("id") == node_id:
                 return node

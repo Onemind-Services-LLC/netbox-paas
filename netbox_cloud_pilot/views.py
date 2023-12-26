@@ -40,9 +40,10 @@ class NetBoxNodeLog(PermissionRequiredMixin, View):
         Retrieve logs from Jelastic and return them as a response.
         """
         instance = get_object_or_404(models.NetBoxConfiguration, pk=pk)
+        env_name = request.POST.get("env_name")
         node_id = request.POST.get("node_id")
 
-        node = instance.env_node(node_id)
+        node = instance.env_node(env_name, node_id)
         logs = instance.read_node_log(node_id)
         return render(
             request,
