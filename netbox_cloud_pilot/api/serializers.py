@@ -2,9 +2,7 @@ from netbox.api.serializers import NetBoxModelSerializer
 
 from ..models import *
 
-__all__ = [
-    "NetBoxConfigurationSerializer",
-]
+__all__ = ["NetBoxConfigurationSerializer", "NetBoxDBBackupSerializer"]
 
 
 class NetBoxConfigurationSerializer(NetBoxModelSerializer):
@@ -14,3 +12,9 @@ class NetBoxConfigurationSerializer(NetBoxModelSerializer):
             "id",
             "key",
         )
+
+
+class NetBoxDBBackupSerializer(NetBoxModelSerializer):
+    class Meta:
+        model = NetBoxDBBackup
+        fields = ("id", "crontab", "keep_backups")

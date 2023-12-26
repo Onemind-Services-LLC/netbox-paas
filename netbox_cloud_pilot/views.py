@@ -119,10 +119,14 @@ class NetBoxRestartView(PermissionRequiredMixin, View):
         node_group = request.POST.get("node_group")
         instance.restart_node_group(node_group)
         messages.success(request, "Restarted successfully.")
-        return redirect("plugins:netbox_cloud_pilot:netboxconfiguration", pk=instance.pk)
+        return redirect(
+            "plugins:netbox_cloud_pilot:netboxconfiguration", pk=instance.pk
+        )
 
 
-@register_model_view(models.NetBoxConfiguration, "backup_storage", path="backup-storage")
+@register_model_view(
+    models.NetBoxConfiguration, "backup_storage", path="backup-storage"
+)
 class NetBoxStorageView(PermissionRequiredMixin, GetReturnURLMixin, View):
     def get_permission_required(self):
         return ["netbox_cloud_pilot.view_netboxconfiguration"]
@@ -166,7 +170,7 @@ class NetBoxStorageView(PermissionRequiredMixin, GetReturnURLMixin, View):
                 },
                 display_name=form.cleaned_data["display_name"],
                 region=form.cleaned_data["region"],
-                skip_email=True
+                skip_email=True,
             )
             obj.env_name_storage = env_name
             obj.save()
@@ -183,3 +187,29 @@ class NetBoxStorageView(PermissionRequiredMixin, GetReturnURLMixin, View):
                 "return_url": self.get_return_url(request, obj),
             },
         )
+
+
+@register_model_view(models.NetBoxDBBackup)
+class NetBoxDBBackupView(generic.ObjectView):
+    queryset = models.NetBoxDBBackup.objects.all()
+
+
+class NetBoxDBBackupListView(generic.ObjectListView):
+    queryset = models.NetBoxDBBackup.objects.all()
+
+    def get(self, request):
+        if obj := models.NetBoxDBBackup.objects.first():
+            return redirect("plugins:netbox_cloud_pilot:netboxdbbackup", pk=obj.pk)
+
+        return redirect("plugins:netbox_cloud_pilot:netboxdbbackup_add")
+
+
+@register_model_view(models.NetBoxDBBackup, "edit")
+class NetBoxDBBackupEditView(generic.ObjectEditView):
+    queryset = models.NetBoxDBBackup.objects.all()
+    form = forms.NetBoxDBBackupForm
+
+
+@register_model_view(models.NetBoxDBBackup, "delete")
+class NetBoxDBBackupDeleteView(generic.ObjectDeleteView):
+    queryset = models.NetBoxDBBackup.objects.all()

@@ -1,7 +1,8 @@
-import json
 import logging
 from functools import lru_cache
 
+from croniter import croniter
+from croniter.croniter import CroniterError
 from django.core.exceptions import ValidationError
 from django.core.validators import MinLengthValidator
 from django.db import models
@@ -9,11 +10,12 @@ from django.urls import reverse
 from jelastic import Jelastic
 from jelastic.api.exceptions import JelasticApiError
 
+import json
 from netbox.config import get_config
-from netbox.models import PrimaryModel
+from netbox.models import PrimaryModel, ChangeLoggedModel
 from .constants import *
 
-__all__ = ("NetBoxConfiguration",)
+__all__ = ("NetBoxConfiguration", "NetBoxDBBackup")
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +75,9 @@ class NetBoxConfiguration(PrimaryModel):
         if self.env_name_storage:
             try:
                 # Ensure the provided env_name_storage exists
-                self._jelastic().environment.Control.GetEnvInfo(env_name=self.env_name_storage)
+                self._jelastic().environment.Control.GetEnvInfo(
+                    env_name=self.env_name_storage
+                )
             except JelasticApiError as e:
                 raise ValidationError(e)
 
@@ -136,7 +140,9 @@ class NetBoxConfiguration(PrimaryModel):
 
         # For each node group, add the related nodes
         for node_group in node_groups:
-            node_group["node"] = self.env_nodes(env_name, node_group["name"], is_master=True)
+            node_group["node"] = self.env_nodes(
+                env_name, node_group["name"], is_master=True
+            )
 
         return node_groups
 
@@ -292,3 +298,65 @@ class NetBoxConfiguration(PrimaryModel):
             env_name=self.env_name,
             node_group=node_group,
         )
+
+
+class NetBoxDBBackup(ChangeLoggedModel):
+    netbox_env = models.ForeignKey(
+        to="netbox_cloud_pilot.NetBoxConfiguration",
+        on_delete=models.CASCADE,
+        related_name="db_backups",
+        verbose_name="NetBox Environment",
+    )
+
+    crontab = models.CharField(
+        max_length=255,
+        help_text=(
+            "Crontab expression for the backup schedule."
+            "See <a href='https://crontab.guru/' target='_blank'>crontab.guru</a> for more information."
+        ),
+        default="@daily",
+    )
+
+    keep_backups = models.PositiveIntegerField(
+        default=1,
+        help_text="Number of newest backups to keep during rotation.",
+    )
+
+    class Meta:
+        verbose_name = "NetBox DB Backup"
+        verbose_name_plural = "NetBox DB Backups"
+
+    def get_absolute_url(self):
+        return reverse("plugins:netbox_cloud_pilot:netboxdbbackup", args=[self.pk])
+
+    def __str__(self):
+        return self.crontab
+
+    def clean(self):
+        super().clean()
+
+        if self.__class__.objects.exists() and not self.pk:
+            raise ValidationError("There can only be one NetBoxDBBackup instance.")
+
+        # Ensure netbox_env has a storage env connected before proceeding
+        if not self.netbox_env.env_name_storage:
+            raise ValidationError(
+                {
+                    "netbox_env": "Add a backup storage environment to the NetBoxConfiguration instance."
+                }
+            )
+
+        if self.keep_backups > 30:
+            raise ValidationError(
+                {"keep_backups": "The maximum number of backups to keep is 30."}
+            )
+
+        if self.keep_backups < 1:
+            raise ValidationError(
+                {"keep_backups": "The minimum number of backups to keep is 1."}
+            )
+
+        try:
+            croniter(self.crontab)
+        except CroniterError as e:
+            raise ValidationError({"crontab": e})

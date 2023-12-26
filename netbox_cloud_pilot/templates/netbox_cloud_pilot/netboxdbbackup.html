@@ -1,0 +1,27 @@
+{% extends 'generic/object.html' %}
+
+{% block content %}
+    <div class="row mb-3">
+        <div class="col col-md-6">
+            <div class="card">
+                <h5 class="card-header">Overview</h5>
+                <div class="card-body">
+                    <table class="table table-hover attr-table">
+                        <tr>
+                            <th scope="row">Crontab</th>
+                            <td>{{ object.crontab }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Keep Backups</th>
+                            <td>{{ object.keep_backups }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">NetBox Environment</th>
+                            <td>{{ object.netbox_env|linkify }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

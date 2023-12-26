@@ -13,6 +13,11 @@ menu = PluginMenu(
                     link="plugins:netbox_cloud_pilot:netboxconfiguration_list",
                     permissions=["netbox_cloud_pilot.view_netboxconfiguration"],
                 ),
+                PluginMenuItem(
+                    link_text="DB Backups",
+                    link="plugins:netbox_cloud_pilot:netboxdbbackup_list",
+                    permissions=["netbox_cloud_pilot.change_netboxconfiguration"],
+                ),
             ),
         ),
     ),

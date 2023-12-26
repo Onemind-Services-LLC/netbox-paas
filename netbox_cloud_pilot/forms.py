@@ -7,7 +7,12 @@ from utilities.forms.fields import CommentField
 from .constants import NETBOX_SETTINGS
 from .models import *
 
-__all__ = ("NetBoxConfigurationForm", "NetBoxSettingsForm", "NetBoxBackupStorageForm")
+__all__ = (
+    "NetBoxConfigurationForm",
+    "NetBoxSettingsForm",
+    "NetBoxBackupStorageForm",
+    "NetBoxDBBackupForm",
+)
 
 
 def create_fieldset():
@@ -46,7 +51,7 @@ class NetBoxConfigurationForm(NetBoxModelForm):
 
     fieldsets = (
         (None, ("key", "env_name", "description")),
-        ('Backup', ("env_name_storage",)),
+        ("Backup", ("env_name_storage",)),
     )
 
     class Meta:
@@ -92,15 +97,10 @@ class NetBoxBackupStorageForm(BootstrapMixin, forms.Form):
     )
 
     node_count = forms.ChoiceField(
-        choices=(
-            (1, 1),
-            (3, 3),
-            (5, 5),
-            (7, 7)
-        ),
+        choices=((1, 1), (3, 3), (5, 5), (7, 7)),
         initial=1,
         help_text="Number of nodes in the cluster.",
-        required=False
+        required=False,
     )
 
     storage_size = forms.IntegerField(
@@ -108,7 +108,7 @@ class NetBoxBackupStorageForm(BootstrapMixin, forms.Form):
         required=False,
         help_text="Size of the storage in GB.",
         initial=10,
-        max_value=200
+        max_value=200,
     )
 
     region = forms.ChoiceField(
@@ -119,12 +119,12 @@ class NetBoxBackupStorageForm(BootstrapMixin, forms.Form):
         label="Display Name",
         help_text="Display name for the storage.",
         max_length=50,
-        initial="Backup Storage"
+        initial="Backup Storage",
     )
 
     fieldsets = (
         (None, ("display_name", "storage_size", "region")),
-        ("Deployment", ("deployment", "node_count"))
+        ("Deployment", ("deployment", "node_count")),
     )
 
     class Meta:
@@ -141,22 +141,36 @@ class NetBoxBackupStorageForm(BootstrapMixin, forms.Form):
 
         # Fetch the region list and build the choices
         nc = NetBoxConfiguration.objects.first()
-        regions = nc._jelastic().environment.Control.GetRegions().get('array', [])
-        self.fields['region'].choices = [(hard_node_group['uniqueName'], region['displayName']) for region in regions for hard_node_group in region['hardNodeGroups']]
+        regions = nc._jelastic().environment.Control.GetRegions().get("array", [])
+        self.fields["region"].choices = [
+            (hard_node_group["uniqueName"], region["displayName"])
+            for region in regions
+            for hard_node_group in region["hardNodeGroups"]
+        ]
 
     def clean(self):
         cleaned_data = super().clean()
 
         if cleaned_data["deployment"] == "cluster":
-            if cleaned_data["node_count"] == '1':
-                raise ValidationError({
-                    "node_count": "Node count must be greater than 1 for a cluster deployment."
-                })
+            if cleaned_data["node_count"] == "1":
+                raise ValidationError(
+                    {
+                        "node_count": "Node count must be greater than 1 for a cluster deployment."
+                    }
+                )
 
         if cleaned_data["deployment"] == "standalone":
-            if cleaned_data["node_count"] != '1':
-                raise ValidationError({
-                    "node_count": "Node count must be 1 for a standalone deployment."
-                })
+            if cleaned_data["node_count"] != "1":
+                raise ValidationError(
+                    {"node_count": "Node count must be 1 for a standalone deployment."}
+                )
 
         return cleaned_data
+
+
+class NetBoxDBBackupForm(NetBoxModelForm):
+    tags = None
+
+    class Meta:
+        model = NetBoxDBBackup
+        fields = ["netbox_env", "crontab", "keep_backups"]
