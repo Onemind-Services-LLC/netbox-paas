@@ -497,4 +497,18 @@ class NetBoxDBBackup(ChangeLoggedModel):
 
         backups = json.loads(result.get('responses', [])[0].get('out', '')).get('backups', {})
         backups = backups.get(self.netbox_env.env_name, [])
-        return [self.__parse_backup_name(backup) for backup in backups]
+        return sorted([self.__parse_backup_name(backup) for backup in backups], key=lambda x: x.get('datetime'), reverse=True)
+
+    def restore(self, backup_name):
+        # Execute restore
+        jc = self.netbox_env._jelastic()
+        app = self.get_installed_app('db-backup')
+
+        jc.marketplace.Installation.ExecuteAction(
+            app_unique_name=app.get('uniqueName'),
+            action='restore',
+            params={
+                'backupDir': backup_name,
+                'backupedEnvName': self.netbox_env.env_name
+            }
+        )

@@ -243,3 +243,26 @@ class NetBoxDBBackupBackupView(PermissionRequiredMixin, View):
         return redirect(
             "plugins:netbox_cloud_pilot:netboxdbbackup", pk=instance.pk
         )
+
+
+@register_model_view(models.NetBoxDBBackup, "restore")
+class NetBoxDBBackupRestoreView(PermissionRequiredMixin, View):
+    def get_permission_required(self):
+        return ["netbox_cloud_pilot.change_netboxdbbackup"]
+
+    def post(self, request, pk):
+        """
+        Restore a backup.
+        """
+        instance = get_object_or_404(models.NetBoxDBBackup, pk=pk)
+        backup_name = request.POST.get("name")
+
+        try:
+            instance.restore(backup_name)
+            messages.success(request, "Backup restored successfully.")
+        except JelasticApiError as e:
+            messages.error(request, e)
+
+        return redirect(
+            "plugins:netbox_cloud_pilot:netboxdbbackup", pk=instance.pk
+        )

@@ -35,15 +35,17 @@
             </div>
         </div>
     </div>
-    <div class="row mb-3">
-        <div class="col col-md-12">
-            <div class="card">
-                <h5 class="card-header">Backups</h5>
-                <div class="card-body table-responsive">
-                    {% render_table backup_table 'inc/table.html' %}
-                    {% include 'inc/paginator.html' with paginator=table.paginator page=backup_table.page %}
+    {% if backup_table.rows %}
+        <div class="row mb-3">
+            <div class="col col-md-12">
+                <div class="card">
+                    <h5 class="card-header">Backups</h5>
+                    <div class="card-body table-responsive">
+                        {% render_table backup_table 'inc/table.html' %}
+                        {% include 'inc/paginator.html' with paginator=table.paginator page=backup_table.page %}
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    {% endif %}
 {% endblock %}
