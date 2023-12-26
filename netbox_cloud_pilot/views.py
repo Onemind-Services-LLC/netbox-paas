@@ -10,7 +10,7 @@ from jelastic.api.exceptions import JelasticApiError
 
 from netbox.views import generic
 from utilities.views import register_model_view, GetReturnURLMixin
-from . import forms, models, tables
+from . import constants, forms, models, tables
 
 
 @register_model_view(models.NetBoxConfiguration)
@@ -197,9 +197,7 @@ class NetBoxDBBackupView(generic.ObjectView):
     def get_extra_context(self, request, instance):
         table = tables.NetBoxBackupsTable(instance.list_backups())
 
-        return {
-            "backup_table": table
-        }
+        return {"backup_table": table}
 
 
 class NetBoxDBBackupListView(generic.ObjectListView):
@@ -240,9 +238,7 @@ class NetBoxDBBackupBackupView(PermissionRequiredMixin, View):
         except JelasticApiError as e:
             messages.error(request, e)
 
-        return redirect(
-            "plugins:netbox_cloud_pilot:netboxdbbackup", pk=instance.pk
-        )
+        return redirect("plugins:netbox_cloud_pilot:netboxdbbackup", pk=instance.pk)
 
 
 @register_model_view(models.NetBoxDBBackup, "restore")
@@ -263,6 +259,23 @@ class NetBoxDBBackupRestoreView(PermissionRequiredMixin, View):
         except JelasticApiError as e:
             messages.error(request, e)
 
-        return redirect(
-            "plugins:netbox_cloud_pilot:netboxdbbackup", pk=instance.pk
-        )
+        return redirect("plugins:netbox_cloud_pilot:netboxdbbackup", pk=instance.pk)
+
+
+class NetBoxPluginListView(View):
+    def get(self, request):
+        if nc := models.NetBoxConfiguration.objects.first():
+            addons = nc.list_addons(
+                env_name=nc.env_name,
+                node_group=constants.NODE_GROUP_CP,
+                search={"categories": ["apps/netbox-plugins"]},
+            )
+
+            return render(
+                request,
+                "netbox_cloud_pilot/plugins_store.html",
+                {"plugins": addons},
+            )
+
+        messages.error(request, "You must configure NetBox first.")
+        return redirect("plugins:netbox_cloud_pilot:netboxconfiguration_add")

@@ -1,0 +1,51 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}Plugins Store{% endblock %}
+
+{% block subtitle %}
+    <div class="object-subtitle">
+        <span>Manage plugins for your environment</span>
+    </div>
+{% endblock %}
+
+{% block content-wrapper %}
+    <div class="tab-content">
+        {% block content %}
+            <div class="row mb-3">
+                {% for plugin in plugins %}
+                    <div class="col col-md-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="mdi mdi-license" title="License">Free</span>
+                                <span class="separator">&middot;</span>
+                                <span class="mdi mdi-star" title="Stars">0</span>
+                            </div>
+                            <div class="card-body text-center">
+                                <h4>{{ plugin.name }}</h4>
+                                <p>{{ plugin.shortDescription }}</p>
+                                {% if plugin.homepage %}
+                                    <a href="{{ plugin.homepage }}" target="_blank">
+                                        <i class="mdi mdi-github"></i> View on GitHub
+                                    </a>
+                                {% endif %}
+                            </div>
+                            <div class="card-footer text-end">
+                                <a class="btn btn-sm btn-cyan">
+                                    <i class="mdi mdi-cog"></i> Configure
+                                </a>
+
+                                <a class="btn btn-sm btn-danger">
+                                    <i class="mdi mdi-trash-can-outline"></i> Uninstall
+                                </a>
+
+                                <a class="btn btn-sm btn-primary">
+                                    <i class="mdi mdi-plus-thick"></i> Install
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endblock %}
+    </div>
+{% endblock %}

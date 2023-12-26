@@ -36,4 +36,10 @@ urlpatterns = (
         "db-backups/<int:pk>/",
         include(get_model_urls(app_name, "netboxdbbackup")),
     ),
+    # Plugins
+    path(
+        "plugins/",
+        views.NetBoxPluginListView.as_view(),
+        name="netboxplugin_list",
+    ),
 )

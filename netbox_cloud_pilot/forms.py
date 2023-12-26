@@ -191,14 +191,14 @@ class NetBoxDBBackupForm(NetBoxModelForm):
 
         if self.instance:
             # Fetch the database password from the addon settings
-            app = self.instance.get_installed_app('db-backup')
-            settings = app.get('settings', {}).get('main', {}).get('data', {})
-            self.fields['db_password'].initial = settings.get('dbpass')
+            app = self.instance.get_installed_app("db-backup")
+            settings = app.get("settings", {}).get("main", {}).get("data", {})
+            self.fields["db_password"].initial = settings.get("dbpass")
 
     def clean(self):
         super().clean()
 
-        if db_password := self.cleaned_data.get('db_password'):
+        if db_password := self.cleaned_data.get("db_password"):
             self.instance._db_password = db_password
 
         if not self.instance.pk and not db_password:

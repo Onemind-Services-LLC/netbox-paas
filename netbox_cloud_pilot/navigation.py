@@ -6,7 +6,7 @@ menu = PluginMenu(
     icon_class="mdi mdi-cloud",
     groups=(
         (
-            "Infrastructure",
+            "",
             (
                 PluginMenuItem(
                     link_text="Manage",
@@ -17,6 +17,10 @@ menu = PluginMenu(
                     link_text="DB Backups",
                     link="plugins:netbox_cloud_pilot:netboxdbbackup_list",
                     permissions=["netbox_cloud_pilot.change_netboxconfiguration"],
+                ),
+                PluginMenuItem(
+                    link_text="Plugins Store",
+                    link="plugins:netbox_cloud_pilot:netboxplugin_list",
                 ),
             ),
         ),

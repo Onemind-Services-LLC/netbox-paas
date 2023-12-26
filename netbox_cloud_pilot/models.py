@@ -301,6 +301,17 @@ class NetBoxConfiguration(PrimaryModel):
             node_group=node_group,
         )
 
+    def list_addons(self, env_name, node_group, search=None):
+        return (
+            self._jelastic()
+            .marketplace.App.GetAddonList(
+                env_name=env_name,
+                node_group=node_group,
+                search=search,
+            )
+            .get("apps", [])
+        )
+
 
 class NetBoxDBBackup(ChangeLoggedModel):
     netbox_env = models.ForeignKey(
@@ -365,21 +376,20 @@ class NetBoxDBBackup(ChangeLoggedModel):
 
     @property
     def cron(self):
-        return ' '.join(croniter(self.crontab).expressions)
+        return " ".join(croniter(self.crontab).expressions)
 
     def get_installed_app(self, app_id):
         # Check if the addon is already installed
-        jc = self.netbox_env._jelastic()
-        addons = jc.marketplace.App.GetAddonList(
-            envName=self.netbox_env.env_name,
+        addons = self.netbox_env.list_addons(
+            env_name=self.netbox_env.env_name,
             node_group=NODE_GROUP_SQLDB,
-            search={'nodeType': 'postgresql', 'app_id': app_id},
-        ).get('apps', [])
+            search={"nodeType": "postgresql", "app_id": app_id},
+        )
 
         addon = None
 
         for app in addons:
-            if app.get('app_id') == app_id and app.get('isInstalled'):
+            if app.get("app_id") == app_id and app.get("isInstalled"):
                 addon = app
                 break
 
@@ -399,16 +409,16 @@ class NetBoxDBBackup(ChangeLoggedModel):
                 env_name=self.netbox_env.env_name,
                 app_id=app_id,
                 node_group=NODE_GROUP_SQLDB,
-                settings=settings
+                settings=settings,
             )
         else:
             jc.marketplace.Installation.ExecuteAction(
-                app_unique_name=addon.get('uniqueName'),
-                action='configure',
-                params=settings
+                app_unique_name=addon.get("uniqueName"),
+                action="configure",
+                params=settings,
             )
 
-    def uninstall_addon(self, app_id='db-backup'):
+    def uninstall_addon(self, app_id="db-backup"):
         # Check if the addon is already installed
         jc = self.netbox_env._jelastic()
         db_backup_addon = self.get_installed_app(app_id)
@@ -417,21 +427,23 @@ class NetBoxDBBackup(ChangeLoggedModel):
         env_info = self.netbox_env.env_info()
 
         jc.marketplace.Installation.Uninstall(
-            app_unique_name=db_backup_addon.get('uniqueName'),
-            target_app_id=env_info.get('appid'),
-            app_template_id=app_id
+            app_unique_name=db_backup_addon.get("uniqueName"),
+            target_app_id=env_info.get("appid"),
+            app_template_id=app_id,
         )
 
     def save(self, *args, **kwargs):
         # Install the addon
-        self.install_addon(settings={
-            'scheduleType': 3,
-            'cronTime': self.cron,
-            'storageName': self.netbox_env.env_name_storage,
-            'backupCount': self.keep_backups,
-            'dbuser': 'webadmin',
-            'dbpass': getattr(self, '_db_password', ''),
-        })
+        self.install_addon(
+            settings={
+                "scheduleType": 3,
+                "cronTime": self.cron,
+                "storageName": self.netbox_env.env_name_storage,
+                "backupCount": self.keep_backups,
+                "dbuser": "webadmin",
+                "dbpass": getattr(self, "_db_password", ""),
+            }
+        )
 
         super().save(*args, **kwargs)
 
@@ -446,12 +458,12 @@ class NetBoxDBBackup(ChangeLoggedModel):
         Parse the backup name and return a dictionary with the values.
         """
         # Initial split at the first underscore
-        parts = backup_name.split('_', 1)
+        parts = backup_name.split("_", 1)
         # Parse the date from the first part
-        date = datetime.strptime(parts[0], '%Y-%m-%d').date()
+        date = datetime.strptime(parts[0], "%Y-%m-%d").date()
 
         # Parse the time from the second part
-        parts = parts[1].split('-', 1)
+        parts = parts[1].split("-", 1)
         # Parse the time from the first part
         time = datetime.fromtimestamp(int(parts[0])).time()
 
@@ -459,27 +471,27 @@ class NetBoxDBBackup(ChangeLoggedModel):
         date = datetime.combine(date, time)
 
         # Parse the backup type and the database version
-        if match := re.search(r'(\w+)\((.+)\)', parts[1]):
+        if match := re.search(r"(\w+)\((.+)\)", parts[1]):
             backup_type = match.group(1)
-            db_version = match.group(2).split('-', 1)[1]
+            db_version = match.group(2).split("-", 1)[1]
         else:
             backup_type, db_version = None, None
 
         return {
-            'name': backup_name,
-            'datetime': date,
-            'backup_type': backup_type,
-            'db_version': db_version,
+            "name": backup_name,
+            "datetime": date,
+            "backup_type": backup_type,
+            "db_version": db_version,
         }
 
     def backup(self):
         # Execute backup
         jc = self.netbox_env._jelastic()
-        app = self.get_installed_app('db-backup')
+        app = self.get_installed_app("db-backup")
 
         jc.marketplace.Installation.ExecuteAction(
-            app_unique_name=app.get('uniqueName'),
-            action='backup',
+            app_unique_name=app.get("uniqueName"),
+            action="backup",
         )
 
     def list_backups(self):
@@ -487,28 +499,34 @@ class NetBoxDBBackup(ChangeLoggedModel):
 
         # Get the master node ID of the storage node
         node_groups = self.netbox_env.env_storage_node_groups()
-        master_node = node_groups[0].get('node')
+        master_node = node_groups[0].get("node")
 
         result = jc.environment.Control.ExecCmdById(
             env_name=self.netbox_env.env_name_storage,
-            node_id=master_node.get('id'),
-            command_list=[{"command": "/root/getBackupsAllEnvs.sh"}]
+            node_id=master_node.get("id"),
+            command_list=[{"command": "/root/getBackupsAllEnvs.sh"}],
         )
 
-        backups = json.loads(result.get('responses', [])[0].get('out', '')).get('backups', {})
+        backups = json.loads(result.get("responses", [])[0].get("out", "")).get(
+            "backups", {}
+        )
         backups = backups.get(self.netbox_env.env_name, [])
-        return sorted([self.__parse_backup_name(backup) for backup in backups], key=lambda x: x.get('datetime'), reverse=True)
+        return sorted(
+            [self.__parse_backup_name(backup) for backup in backups],
+            key=lambda x: x.get("datetime"),
+            reverse=True,
+        )
 
     def restore(self, backup_name):
         # Execute restore
         jc = self.netbox_env._jelastic()
-        app = self.get_installed_app('db-backup')
+        app = self.get_installed_app("db-backup")
 
         jc.marketplace.Installation.ExecuteAction(
-            app_unique_name=app.get('uniqueName'),
-            action='restore',
+            app_unique_name=app.get("uniqueName"),
+            action="restore",
             params={
-                'backupDir': backup_name,
-                'backupedEnvName': self.netbox_env.env_name
-            }
+                "backupDir": backup_name,
+                "backupedEnvName": self.netbox_env.env_name,
+            },
         )

@@ -2,9 +2,7 @@ import django_tables2 as tables
 from netbox.tables import columns
 
 
-__all__ = (
-    "NetBoxBackupsTable",
-)
+__all__ = ("NetBoxBackupsTable",)
 
 RESTORE_BUTTON = """
 <form method="post" action="{% url 'plugins:netbox_cloud_pilot:netboxdbbackup_restore' pk=object.pk %}">
@@ -46,5 +44,5 @@ class NetBoxBackupsTable(tables.Table):
     class Meta:
         fields = ("name", "datetime", "backup_type", "db_version", "actions")
         attrs = {
-            'class': 'table table-hover object-list',
+            "class": "table table-hover object-list",
         }
