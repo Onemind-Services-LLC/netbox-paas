@@ -1,3 +1,5 @@
+import requests
+
 from django import forms
 from django.conf import settings
 from django.forms import ValidationError
@@ -269,12 +271,22 @@ class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
 
         # If the plugin is private, ensure that license is provided
         nc = NetBoxConfiguration.objects.first()
-        if plugin.get("private") and not nc.license:
-            raise ValidationError(
-                {
-                    "plugin_name": "This plugin requires a NetBox Enterprise license."
-                }
-            )
+        if plugin.get("private"):
+            if not nc.license:
+                raise ValidationError(
+                    {
+                        "plugin_name": "This plugin requires a NetBox Enterprise license."
+                    }
+                )
+
+            # Check if the plugin is accessible using the license
+            response = requests.get(plugin.get('github_api_url'), headers={'Authorization': f'Bearer {nc.license}'})
+            if not response.ok:
+                raise ValidationError(
+                    {
+                        "plugin_name": "This plugin is not accessible using the provided license."
+                    }
+                )
 
         # Get the required_settings from the plugin
         required_settings = plugin.get("required_settings", [])
