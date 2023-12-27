@@ -267,6 +267,15 @@ class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
         plugins = get_plugins_list()
         plugin = plugins.get(self.cleaned_data.get("plugin_name"))
 
+        # If the plugin is private, ensure that license is provided
+        nc = NetBoxConfiguration.objects.first()
+        if plugin.get("private") and not nc.license:
+            raise ValidationError(
+                {
+                    "plugin_name": "This plugin requires a NetBox Enterprise license."
+                }
+            )
+
         # Get the required_settings from the plugin
         required_settings = plugin.get("required_settings", [])
         configuration = self.cleaned_data.get("configuration")
