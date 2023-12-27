@@ -1,4 +1,5 @@
 from django import forms
+from django.conf import settings
 from django.forms import ValidationError
 
 from netbox.forms import NetBoxModelForm
@@ -6,12 +7,14 @@ from utilities.forms import BootstrapMixin
 from utilities.forms.fields import CommentField
 from .constants import NETBOX_SETTINGS
 from .models import *
+from .utils import *
 
 __all__ = (
     "NetBoxConfigurationForm",
     "NetBoxSettingsForm",
     "NetBoxBackupStorageForm",
     "NetBoxDBBackupForm",
+    "NetBoxPluginInstallForm",
 )
 
 
@@ -210,4 +213,68 @@ class NetBoxDBBackupForm(NetBoxModelForm):
         if not self.instance.pk and not db_password:
             raise ValidationError(
                 {"db_password": "This field is required when adding a new backup."}
+            )
+
+
+class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
+    plugin_name = forms.CharField(
+        label="Plugin Name",
+        help_text="Name of the plugin to install.",
+        max_length=255,
+        disabled=True,
+    )
+
+    plugin_version = forms.ChoiceField(
+        label="Plugin Version",
+        help_text="Version of the plugin to install.",
+    )
+
+    configuration = forms.JSONField(
+        label="Configuration",
+        help_text="Configuration for the plugin.",
+        required=False,
+        initial={}
+    )
+
+    fieldsets = (
+        (None, ("plugin_name", "plugin_version")),
+        ("Configuration", ("configuration",)),
+    )
+
+    class Meta:
+        fields = ["plugin_name", "plugin_version", "configuration"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        initial = kwargs.get("initial", {})
+
+        # Get the plugins.yaml
+        plugins = get_plugins_list()
+        plugin = plugins.get(initial.get("plugin_name"))
+        self.fields["plugin_version"].choices = [
+            (release, release) for release in filter_releases(plugin)
+        ]
+
+        if initial.get('type') == 'update':
+            from django.apps import apps
+            plugin_name = plugin.get('netbox_name')
+            app = apps.get_app_config(plugin_name)
+            self.fields['plugin_version'].initial = app.version
+            self.fields['configuration'].initial = settings.PLUGINS_CONFIG[plugin_name]
+
+    def clean(self):
+        plugins = get_plugins_list()
+        plugin = plugins.get(self.cleaned_data.get("plugin_name"))
+
+        # Get the required_settings from the plugin
+        required_settings = plugin.get("required_settings", [])
+        configuration = self.cleaned_data.get("configuration")
+
+        # Check if the required_settings are in the configuration
+        if not all(key in configuration.keys() for key in required_settings):
+            raise ValidationError(
+                {
+                    "configuration": f"Missing required settings: {', '.join(required_settings)}"
+                }
             )

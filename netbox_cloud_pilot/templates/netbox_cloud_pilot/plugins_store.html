@@ -38,7 +38,7 @@
                             </div>
                             <div class="card-footer text-end">
                                 {% if plugin.installed %}
-                                    <a class="btn btn-sm btn-cyan">
+                                    <a class="btn btn-sm btn-cyan" href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_plugin_install' pk=object.pk %}?plugin_name={{ plugin_name }}&type=update&return_url={{ request.path }}">
                                         <i class="mdi mdi-cog"></i> Configure
                                     </a>
 
@@ -46,7 +46,7 @@
                                         <i class="mdi mdi-trash-can-outline"></i> Uninstall
                                     </a>
                                 {% else %}
-                                    <a class="btn btn-sm btn-primary">
+                                    <a class="btn btn-sm btn-primary" href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_plugin_install' pk=object.pk %}?plugin_name={{ plugin_name }}&type=install&return_url={{ request.path }}">
                                         <i class="mdi mdi-plus-thick"></i> Install
                                     </a>
                                 {% endif %}

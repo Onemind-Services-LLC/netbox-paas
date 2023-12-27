@@ -1,8 +1,6 @@
 import random
 import string
 
-import requests
-import yaml
 from django.contrib import messages
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.shortcuts import redirect, get_object_or_404, render
@@ -11,8 +9,9 @@ from django.views.generic import View
 from jelastic.api.exceptions import JelasticApiError
 
 from netbox.views import generic
+from utilities.utils import normalize_querydict
 from utilities.views import register_model_view, GetReturnURLMixin
-from . import constants, forms, models, tables
+from . import constants, forms, models, tables, utils
 
 
 @register_model_view(models.NetBoxConfiguration)
@@ -273,13 +272,7 @@ class NetBoxPluginListView(View):
                 search={"categories": ["apps/netbox-plugins"]},
             )
 
-            plugins = []
-
-            # Download plugins.yaml from GitHub
-            response = requests.get(
-                'https://raw.githubusercontent.com/Onemind-Services-LLC/netbox-jps/feat/pypi/plugins.yaml')
-            if response.ok:
-                plugins = yaml.safe_load(response.text)
+            plugins = utils.get_plugins_list()
 
             # Find which addon is installed and update the plugins list
             for addon in addons:
@@ -292,8 +285,64 @@ class NetBoxPluginListView(View):
             return render(
                 request,
                 "netbox_cloud_pilot/plugins_store.html",
-                {"plugins": plugins},
+                {
+                    "object": nc,
+                    "plugins": plugins
+                },
             )
 
         messages.error(request, "You must configure NetBox first.")
         return redirect("plugins:netbox_cloud_pilot:netboxconfiguration_add")
+
+
+@register_model_view(models.NetBoxConfiguration, "plugin_install", path="plugin-install")
+class NetBoxPluginInstallView(generic.ObjectEditView):
+    queryset = models.NetBoxConfiguration.objects.all()
+    form = forms.NetBoxPluginInstallForm
+
+    def initialize_form(self, request):
+        data = request.POST if request.method == 'POST' else None
+        initial_data = normalize_querydict(request.GET)
+
+        form = self.form(data=data, initial=initial_data)
+
+        return form
+
+    def get(self, request, *args, **kwargs):
+        obj = self.get_object(**kwargs)
+        obj = self.alter_object(obj, request, args, kwargs)
+        model = self.queryset.model
+
+        form = self.initialize_form(request)
+        return render(request, self.template_name, {
+            "model": model,
+            "object": obj,
+            "form": form,
+            "return_url": self.get_return_url(request, obj),
+            **self.get_extra_context(request, obj)
+        })
+
+    def post(self, request, *args, **kwargs):
+        obj = self.get_object(**kwargs)
+        form = self.initialize_form(request)
+
+        if form.is_valid():
+            try:
+                obj.install_addon(
+                    app_id=form.cleaned_data["plugin_name"],
+                    node_group=constants.NODE_GROUP_CP,
+                    settings=form.cleaned_data["configuration"]
+                )
+                return redirect(
+                    "plugins:netbox_cloud_pilot:netboxplugin_list"
+                )
+            except JelasticApiError as e:
+                messages.error(request, e)
+                form.add_error(None, e)
+
+        return render(request, self.template_name, {
+            "object": obj,
+            "form": form,
+            "return_url": self.get_return_url(request, obj),
+            **self.get_extra_context(request, obj)
+        })
