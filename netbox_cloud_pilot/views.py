@@ -9,6 +9,7 @@ from django.views.generic import View
 from jelastic.api.exceptions import JelasticApiError
 
 from netbox.views import generic
+from utilities.forms import ConfirmationForm
 from utilities.utils import normalize_querydict
 from utilities.views import register_model_view, GetReturnURLMixin
 from . import constants, forms, models, tables, utils
@@ -345,4 +346,56 @@ class NetBoxPluginInstallView(generic.ObjectEditView):
             "form": form,
             "return_url": self.get_return_url(request, obj),
             **self.get_extra_context(request, obj)
+        })
+
+
+@register_model_view(models.NetBoxConfiguration, "plugin_uninstall", path="plugin-uninstall")
+class NetBoxPluginUninstallView(generic.ObjectDeleteView):
+    queryset = models.NetBoxConfiguration.objects.all()
+    template_name = "netbox_cloud_pilot/plugin_uninstall.html"
+
+    def get(self, request, *args, **kwargs):
+        obj = self.get_object(**kwargs)
+        plugin = utils.get_plugins_list().get(request.GET.get("plugin_name"))
+
+        if plugin is None:
+            messages.error(request, "Plugin not found.")
+            return redirect('plugins:netbox_cloud_pilot:netboxplugin_list')
+
+        form = ConfirmationForm(initial=request.GET)
+
+        return render(request, self.template_name, {
+            'object': obj,
+            'plugin': plugin,
+            'form': form,
+            'return_url': self.get_return_url(request, obj),
+            **self.get_extra_context(request, obj),
+        })
+
+    def post(self, request, *args, **kwargs):
+        obj = self.get_object(**kwargs)
+        form = ConfirmationForm(request.POST)
+
+        plugin = utils.get_plugins_list().get(request.POST.get("plugin_name"))
+
+        if form.is_valid():
+            try:
+                obj.uninstall_addon(
+                    app_id=plugin['plugin_id'],
+                    node_group=constants.NODE_GROUP_CP,
+                )
+                messages.success(request, "Plugin uninstalled successfully.")
+                return redirect(
+                    "plugins:netbox_cloud_pilot:netboxplugin_list"
+                )
+            except JelasticApiError as e:
+                messages.error(request, e)
+                form.add_error(None, e)
+
+        return render(request, self.template_name, {
+            'object': obj,
+            'plugin': plugin,
+            'form': form,
+            'return_url': self.get_return_url(request, obj),
+            **self.get_extra_context(request, obj),
         })

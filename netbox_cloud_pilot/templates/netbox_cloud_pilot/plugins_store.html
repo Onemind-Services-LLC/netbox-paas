@@ -42,7 +42,7 @@
                                         <i class="mdi mdi-cog"></i> Configure
                                     </a>
 
-                                    <a class="btn btn-sm btn-danger">
+                                    <a class="btn btn-sm btn-danger" href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_plugin_uninstall' pk=object.pk %}?plugin_name={{ plugin_name }}&return_url={{ request.path }}">
                                         <i class="mdi mdi-trash-can-outline"></i> Uninstall
                                     </a>
                                 {% else %}
