@@ -1,5 +1,5 @@
 JELASTIC_API = "https://app.xapp.cloudmydc.com"
-NETBOX_JPS_REPO = "https://raw.githubusercontent.com/Onemind-Services-LLC/netbox-jps/feat/pypi"  # TODO: change to master
+NETBOX_JPS_REPO = "https://raw.githubusercontent.com/Onemind-Services-LLC/netbox-jps/master"
 NODE_GROUP_CP = "cp"
 NODE_GROUP_SQLDB = "sqldb"
 
