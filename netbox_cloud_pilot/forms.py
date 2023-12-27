@@ -67,7 +67,13 @@ class NetBoxConfigurationForm(NetBoxModelForm):
 
     class Meta:
         model = NetBoxConfiguration
-        fields = ("key", "env_name", "description", "env_name_storage", "license",)
+        fields = (
+            "key",
+            "env_name",
+            "description",
+            "env_name_storage",
+            "license",
+        )
 
 
 class NetBoxSettingsForm(BootstrapMixin, forms.Form):
@@ -235,7 +241,7 @@ class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
         label="Configuration",
         help_text="Configuration for the plugin.",
         required=False,
-        initial={}
+        initial={},
     )
 
     fieldsets = (
@@ -258,12 +264,13 @@ class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
                 (release, release) for release in filter_releases(plugin)
             ]
 
-        if initial.get('type') == 'update':
+        if initial.get("type") == "update":
             from django.apps import apps
-            plugin_name = plugin.get('netbox_name')
+
+            plugin_name = plugin.get("netbox_name")
             app = apps.get_app_config(plugin_name)
-            self.fields['plugin_version'].initial = app.version
-            self.fields['configuration'].initial = settings.PLUGINS_CONFIG[plugin_name]
+            self.fields["plugin_version"].initial = app.version
+            self.fields["configuration"].initial = settings.PLUGINS_CONFIG[plugin_name]
 
     def clean(self):
         plugins = get_plugins_list()
@@ -274,13 +281,14 @@ class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
         if plugin.get("private"):
             if not nc.license:
                 raise ValidationError(
-                    {
-                        "plugin_name": "This plugin requires a NetBox Enterprise license."
-                    }
+                    {"plugin_name": "This plugin requires a NetBox Enterprise license."}
                 )
 
             # Check if the plugin is accessible using the license
-            response = requests.get(plugin.get('github_api_url'), headers={'Authorization': f'Bearer {nc.license}'})
+            response = requests.get(
+                plugin.get("github_api_url"),
+                headers={"Authorization": f"Bearer {nc.license}"},
+            )
             if not response.ok:
                 raise ValidationError(
                     {

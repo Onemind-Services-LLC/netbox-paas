@@ -278,31 +278,32 @@ class NetBoxPluginListView(View):
             # Find which addon is installed and update the plugins list
             for addon in addons:
                 for plugin_name in plugins:
-                    if addon['app_id'] == plugin_name:
-                        plugins[plugin_name].update({
-                            'installed': addon['isInstalled'],
-                        })
+                    if addon["app_id"] == plugin_name:
+                        plugins[plugin_name].update(
+                            {
+                                "installed": addon["isInstalled"],
+                            }
+                        )
 
             return render(
                 request,
                 "netbox_cloud_pilot/plugins_store.html",
-                {
-                    "object": nc,
-                    "plugins": plugins
-                },
+                {"object": nc, "plugins": plugins},
             )
 
         messages.error(request, "You must configure NetBox first.")
         return redirect("plugins:netbox_cloud_pilot:netboxconfiguration_add")
 
 
-@register_model_view(models.NetBoxConfiguration, "plugin_install", path="plugin-install")
+@register_model_view(
+    models.NetBoxConfiguration, "plugin_install", path="plugin-install"
+)
 class NetBoxPluginInstallView(generic.ObjectEditView):
     queryset = models.NetBoxConfiguration.objects.all()
     form = forms.NetBoxPluginInstallForm
 
     def initialize_form(self, request):
-        data = request.POST if request.method == 'POST' else None
+        data = request.POST if request.method == "POST" else None
         initial_data = normalize_querydict(request.GET)
 
         form = self.form(data=data, initial=initial_data)
@@ -315,13 +316,17 @@ class NetBoxPluginInstallView(generic.ObjectEditView):
         model = self.queryset.model
 
         form = self.initialize_form(request)
-        return render(request, self.template_name, {
-            "model": model,
-            "object": obj,
-            "form": form,
-            "return_url": self.get_return_url(request, obj),
-            **self.get_extra_context(request, obj)
-        })
+        return render(
+            request,
+            self.template_name,
+            {
+                "model": model,
+                "object": obj,
+                "form": form,
+                "return_url": self.get_return_url(request, obj),
+                **self.get_extra_context(request, obj),
+            },
+        )
 
     def post(self, request, *args, **kwargs):
         obj = self.get_object(**kwargs)
@@ -332,24 +337,28 @@ class NetBoxPluginInstallView(generic.ObjectEditView):
                 obj.install_addon(
                     app_id=form.cleaned_data["plugin_name"],
                     node_group=constants.NODE_GROUP_CP,
-                    settings=form.cleaned_data["configuration"]
+                    settings=form.cleaned_data["configuration"],
                 )
-                return redirect(
-                    "plugins:netbox_cloud_pilot:netboxplugin_list"
-                )
+                return redirect("plugins:netbox_cloud_pilot:netboxplugin_list")
             except JelasticApiError as e:
                 messages.error(request, e)
                 form.add_error(None, e)
 
-        return render(request, self.template_name, {
-            "object": obj,
-            "form": form,
-            "return_url": self.get_return_url(request, obj),
-            **self.get_extra_context(request, obj)
-        })
+        return render(
+            request,
+            self.template_name,
+            {
+                "object": obj,
+                "form": form,
+                "return_url": self.get_return_url(request, obj),
+                **self.get_extra_context(request, obj),
+            },
+        )
 
 
-@register_model_view(models.NetBoxConfiguration, "plugin_uninstall", path="plugin-uninstall")
+@register_model_view(
+    models.NetBoxConfiguration, "plugin_uninstall", path="plugin-uninstall"
+)
 class NetBoxPluginUninstallView(generic.ObjectDeleteView):
     queryset = models.NetBoxConfiguration.objects.all()
     template_name = "netbox_cloud_pilot/plugin_uninstall.html"
@@ -360,17 +369,21 @@ class NetBoxPluginUninstallView(generic.ObjectDeleteView):
 
         if plugin is None:
             messages.error(request, "Plugin not found.")
-            return redirect('plugins:netbox_cloud_pilot:netboxplugin_list')
+            return redirect("plugins:netbox_cloud_pilot:netboxplugin_list")
 
         form = ConfirmationForm(initial=request.GET)
 
-        return render(request, self.template_name, {
-            'object': obj,
-            'plugin': plugin,
-            'form': form,
-            'return_url': self.get_return_url(request, obj),
-            **self.get_extra_context(request, obj),
-        })
+        return render(
+            request,
+            self.template_name,
+            {
+                "object": obj,
+                "plugin": plugin,
+                "form": form,
+                "return_url": self.get_return_url(request, obj),
+                **self.get_extra_context(request, obj),
+            },
+        )
 
     def post(self, request, *args, **kwargs):
         obj = self.get_object(**kwargs)
@@ -381,21 +394,23 @@ class NetBoxPluginUninstallView(generic.ObjectDeleteView):
         if form.is_valid():
             try:
                 obj.uninstall_addon(
-                    app_id=plugin['plugin_id'],
+                    app_id=plugin["plugin_id"],
                     node_group=constants.NODE_GROUP_CP,
                 )
                 messages.success(request, "Plugin uninstalled successfully.")
-                return redirect(
-                    "plugins:netbox_cloud_pilot:netboxplugin_list"
-                )
+                return redirect("plugins:netbox_cloud_pilot:netboxplugin_list")
             except JelasticApiError as e:
                 messages.error(request, e)
                 form.add_error(None, e)
 
-        return render(request, self.template_name, {
-            'object': obj,
-            'plugin': plugin,
-            'form': form,
-            'return_url': self.get_return_url(request, obj),
-            **self.get_extra_context(request, obj),
-        })
+        return render(
+            request,
+            self.template_name,
+            {
+                "object": obj,
+                "plugin": plugin,
+                "form": form,
+                "return_url": self.get_return_url(request, obj),
+                **self.get_extra_context(request, obj),
+            },
+        )

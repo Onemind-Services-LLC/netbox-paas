@@ -92,9 +92,7 @@ class NetBoxConfiguration(PrimaryModel):
 
         if self.license:
             if not self.license.startswith("ghp_"):
-                raise ValidationError({
-                    "license": "License key must start with 'ghp_'"
-                })
+                raise ValidationError({"license": "License key must start with 'ghp_'"})
 
     def _jelastic(self):
         """
@@ -368,7 +366,9 @@ class NetBoxConfiguration(PrimaryModel):
     def uninstall_addon(self, app_id, node_group, search=None):
         # Check if the addon is already installed
         jc = self._jelastic()
-        addon = self.get_installed_app(app_id=app_id, node_group=node_group, search=search)
+        addon = self.get_installed_app(
+            app_id=app_id, node_group=node_group, search=search
+        )
 
         # Get environment info
         env_info = self.env_info()
@@ -457,7 +457,7 @@ class NetBoxDBBackup(ChangeLoggedModel):
                 "backupCount": self.keep_backups,
                 "dbuser": "webadmin",
                 "dbpass": getattr(self, "_db_password", ""),
-            }
+            },
         )
 
         super().save(*args, **kwargs)

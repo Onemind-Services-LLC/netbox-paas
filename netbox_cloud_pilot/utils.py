@@ -5,17 +5,14 @@ from django.conf import settings
 
 from .constants import NETBOX_JPS_REPO
 
-__all__ = (
-    "get_plugins_list",
-    "filter_releases"
-)
+__all__ = ("get_plugins_list", "filter_releases")
 
 
 def get_plugins_list():
     plugins = []
 
     # Download plugins.yaml from GitHub
-    response = requests.get(f'{NETBOX_JPS_REPO}/plugins.yaml')
+    response = requests.get(f"{NETBOX_JPS_REPO}/plugins.yaml")
     if response.ok:
         plugins = yaml.safe_load(response.text)
 
@@ -47,7 +44,7 @@ def filter_releases(plugin):
         max_version = netbox.get("max")
 
         if is_compatible(settings.VERSION, min_version, max_version):
-            compatible_releases.append(release['tag'])
+            compatible_releases.append(release["tag"])
 
     try:
         return sorted(compatible_releases, key=semver.parse_version_info, reverse=True)
