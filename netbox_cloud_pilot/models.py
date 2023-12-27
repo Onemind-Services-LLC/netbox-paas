@@ -6,7 +6,7 @@ from functools import lru_cache
 from croniter import croniter
 from croniter.croniter import CroniterError
 from django.core.exceptions import ValidationError
-from django.core.validators import MinLengthValidator
+from django.core.validators import MinLengthValidator, MaxLengthValidator
 from django.db import models
 from django.urls import reverse
 from jelastic import Jelastic
@@ -46,6 +46,13 @@ class NetBoxConfiguration(PrimaryModel):
         verbose_name="Environment Name Storage",
     )
 
+    license = models.CharField(
+        max_length=255,
+        validators=[MinLengthValidator(40), MaxLengthValidator(40)],
+        blank=True,
+        null=True,
+    )
+
     class Meta:
         verbose_name = "NetBox Configuration"
         verbose_name_plural = "NetBox Configurations"
@@ -82,6 +89,12 @@ class NetBoxConfiguration(PrimaryModel):
                 )
             except JelasticApiError as e:
                 raise ValidationError(e)
+
+        if self.license:
+            if not self.license.startswith("ghp_"):
+                raise ValidationError({
+                    "license": "License key must start with 'ghp_'"
+                })
 
     def _jelastic(self):
         """

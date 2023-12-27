@@ -44,9 +44,20 @@
                                 {% if object.env_name_storage %}
                                     {{ object.env_name_storage }}
                                 {% else %}
-                                    <a href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_backup_storage' pk=object.pk %}" class="btn btn-sm btn-primary">
-                                       <i class="mdi mdi-plus-thick"></i> Add Backup Storage
+                                    <a href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_backup_storage' pk=object.pk %}"
+                                       class="btn btn-sm btn-primary">
+                                        <i class="mdi mdi-plus-thick"></i> Add Backup Storage
                                     </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Enterprise</th>
+                            <td>
+                                {% if object.license %}
+                                    <span class="text-success">Yes</span>
+                                {% else %}
+                                    <span class="text-danger">No</span>
                                 {% endif %}
                             </td>
                         </tr>

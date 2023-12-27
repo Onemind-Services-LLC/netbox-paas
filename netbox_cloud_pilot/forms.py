@@ -47,16 +47,22 @@ class NetBoxConfigurationForm(NetBoxModelForm):
         help_text="Jelastic environment name where the backup storage is running.",
     )
 
+    license = forms.CharField(
+        required=False,
+        help_text="NetBox Enterprise license key.",
+    )
+
     comments = CommentField()
 
     fieldsets = (
         (None, ("key", "env_name", "description")),
         ("Backup", ("env_name_storage",)),
+        ("Enterprise", ("license",)),
     )
 
     class Meta:
         model = NetBoxConfiguration
-        fields = ("key", "env_name", "description", "env_name_storage")
+        fields = ("key", "env_name", "description", "env_name_storage", "license",)
 
 
 class NetBoxSettingsForm(BootstrapMixin, forms.Form):
