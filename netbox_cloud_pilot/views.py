@@ -1,6 +1,8 @@
 import random
 import string
 
+import requests
+import yaml
 from django.contrib import messages
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.shortcuts import redirect, get_object_or_404, render
@@ -271,10 +273,26 @@ class NetBoxPluginListView(View):
                 search={"categories": ["apps/netbox-plugins"]},
             )
 
+            plugins = []
+
+            # Download plugins.yaml from GitHub
+            response = requests.get(
+                'https://raw.githubusercontent.com/Onemind-Services-LLC/netbox-jps/feat/pypi/plugins.yaml')
+            if response.ok:
+                plugins = yaml.safe_load(response.text)
+
+            # Find which addon is installed and update the plugins list
+            for addon in addons:
+                for plugin_name in plugins:
+                    if addon['app_id'] == plugin_name:
+                        plugins[plugin_name].update({
+                            'installed': addon['isInstalled'],
+                        })
+
             return render(
                 request,
                 "netbox_cloud_pilot/plugins_store.html",
-                {"plugins": addons},
+                {"plugins": plugins},
             )
 
         messages.error(request, "You must configure NetBox first.")

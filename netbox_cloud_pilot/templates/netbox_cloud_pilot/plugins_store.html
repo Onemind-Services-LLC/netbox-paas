@@ -12,35 +12,44 @@
     <div class="tab-content">
         {% block content %}
             <div class="row mb-3">
-                {% for plugin in plugins %}
+                {% for plugin_name, plugin in plugins.items %}
                     <div class="col col-md-4">
                         <div class="card">
                             <div class="card-header">
-                                <span class="mdi mdi-license" title="License">Free</span>
+                                <span class="mdi mdi-license" title="License">
+                                    {% if plugin.private %}Paid{% else %}Free{% endif %}
+                                </span>
                                 <span class="separator">&middot;</span>
-                                <span class="mdi mdi-star" title="Stars">0</span>
+                                <span class="mdi mdi-star" title="Stars">{{ plugin.stars }}</span>
                             </div>
                             <div class="card-body text-center">
-                                <h4>{{ plugin.name }}</h4>
-                                <p>{{ plugin.shortDescription }}</p>
-                                {% if plugin.homepage %}
-                                    <a href="{{ plugin.homepage }}" target="_blank">
+                                <h4>{{ plugin_name }}</h4>
+                                <p>{{ plugin.description }}</p>
+                                {% if plugin.github_url %}
+                                    <a href="{{ plugin.github_url }}" target="_blank" class="btn btn-sm">
                                         <i class="mdi mdi-github"></i> View on GitHub
+                                    </a>
+                                {% endif %}
+                                {% if plugin.pypi_url %}
+                                    <a href="{{ plugin.pypi_url }}" target="_blank" class="btn btn-sm">
+                                        <i class="mdi mdi-package"></i> View on PyPI
                                     </a>
                                 {% endif %}
                             </div>
                             <div class="card-footer text-end">
-                                <a class="btn btn-sm btn-cyan">
-                                    <i class="mdi mdi-cog"></i> Configure
-                                </a>
+                                {% if plugin.installed %}
+                                    <a class="btn btn-sm btn-cyan">
+                                        <i class="mdi mdi-cog"></i> Configure
+                                    </a>
 
-                                <a class="btn btn-sm btn-danger">
-                                    <i class="mdi mdi-trash-can-outline"></i> Uninstall
-                                </a>
-
-                                <a class="btn btn-sm btn-primary">
-                                    <i class="mdi mdi-plus-thick"></i> Install
-                                </a>
+                                    <a class="btn btn-sm btn-danger">
+                                        <i class="mdi mdi-trash-can-outline"></i> Uninstall
+                                    </a>
+                                {% else %}
+                                    <a class="btn btn-sm btn-primary">
+                                        <i class="mdi mdi-plus-thick"></i> Install
+                                    </a>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
