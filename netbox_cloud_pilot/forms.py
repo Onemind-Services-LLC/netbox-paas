@@ -251,10 +251,10 @@ class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
 
         # Get the plugins.yaml
         plugins = get_plugins_list()
-        plugin = plugins.get(initial.get("plugin_name"))
-        self.fields["plugin_version"].choices = [
-            (release, release) for release in filter_releases(plugin)
-        ]
+        if plugin := plugins.get(initial.get("plugin_name")):
+            self.fields["plugin_version"].choices = [
+                (release, release) for release in filter_releases(plugin)
+            ]
 
         if initial.get('type') == 'update':
             from django.apps import apps
