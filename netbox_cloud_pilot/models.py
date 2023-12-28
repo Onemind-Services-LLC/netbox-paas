@@ -239,17 +239,20 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
     @property
     def netbox_settings(self):
         """
-        Return the environment variable for the `NODE_GROUP_CP` node group.
+        Return the configuration settings, including environment variables for the settings.
         """
         config = {}
 
-        for section, settings in NETBOX_SETTINGS.items():
-            config[section] = []
-            for setting in settings:
-                for key, value in setting.items():
-                    config[section].append(
-                        {key: {**value, "initial": self._env_var(key)}}
-                    )
+        # Iterate through each section in NETBOX_SETTINGS
+        for section in NETBOX_SETTINGS.sections:
+            section_name = section.name
+            config[section_name] = []
+
+            # Iterate through each setting in the section
+            for param in section.params:
+                # Construct the setting dictionary with additional environment variable
+                param.initial = self._env_var(param.key) or param.initial
+                config[section_name].append(param)
 
         return config
 

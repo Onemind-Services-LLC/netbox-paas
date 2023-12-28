@@ -1,5 +1,4 @@
 import requests
-
 from django import forms
 from django.conf import settings
 from django.forms import ValidationError
@@ -22,16 +21,21 @@ __all__ = (
 
 def create_fieldset():
     """
-    Create a fieldset from a dict of settings.
+    Create a fieldset from the NETBOX_SETTINGS.
     """
     fieldset = ()
 
-    for section, settings in NETBOX_SETTINGS.items():
+    # Iterate through each section in NETBOX_SETTINGS
+    for section in NETBOX_SETTINGS.sections:
         fields = []
-        for setting in settings:
-            for key, value in setting.items():
-                fields.append(key.lower())
-        fieldset += ((section, fields),)
+
+        # Iterate through each setting in the section
+        for param in section.params:
+            # Append the lowercase name of the setting to the fields list
+            fields.append(param.key.lower())
+
+        # Append the section name and its fields to the fieldset
+        fieldset += ((section.name, fields),)
 
     return fieldset
 
@@ -81,28 +85,24 @@ class NetBoxSettingsForm(BootstrapMixin, forms.Form):
 
     class Meta:
         fields = [
-            key.lower()
-            for value in NETBOX_SETTINGS.values()
-            for v in value
-            for key in v
+            param.key.lower()
+            for section in NETBOX_SETTINGS.sections
+            for param in section.params
         ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # Dynamically create fields for each setting
-        for _, settings in kwargs.get("initial", {}).items():
-            for setting in settings:
-                for key, value in setting.items():
-                    field_type = value.pop("field_type", "TextInput")
-                    placeholder = value.pop("placeholder", None)
-
-                    self.fields[key.lower()] = forms.CharField(
-                        **value,
-                        widget=getattr(forms, field_type)(
-                            attrs={"placeholder": placeholder, "class": "form-control"}
-                        ),
-                    )
+        for _, params in kwargs.get("initial", {}).items():
+            for param in params:
+                self.fields[param.key.lower()] = param.field(
+                    label=param.label,
+                    required=param.required,
+                    help_text=param.help_text,
+                    initial=param.initial,
+                    **param.field_kwargs,
+                )
 
 
 class NetBoxBackupStorageForm(BootstrapMixin, forms.Form):
