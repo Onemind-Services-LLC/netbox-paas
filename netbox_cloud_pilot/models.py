@@ -387,7 +387,7 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
         Enqueue a job to run a function.
         """
         # Determine the job name from the func name
-        kwargs['_func'] = func
+        kwargs["_func"] = func
 
         job = Job.enqueue(
             self._run_job,
@@ -404,7 +404,7 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
         Run a function in a job.
         """
         data = {
-            'params': kwargs,
+            "params": kwargs,
         }
 
         try:
@@ -412,11 +412,11 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
             func = kwargs.pop("_func")
             result = func(*args, **kwargs)
 
-            data.update({'result': result})
+            data.update({"result": result})
 
             job.terminate()
         except Exception as e:
-            data.update({'error': str(e)})
+            data.update({"error": str(e)})
             job.terminate(status=JobStatusChoices.STATUS_ERRORED)
 
         job.data = data
@@ -548,7 +548,9 @@ class NetBoxDBBackup(ChangeLoggedModel):
     def backup(self):
         # Execute backup
         jc = self.netbox_env._jelastic()
-        app = self.netbox_env.get_installed_app("db-backup", node_group=NODE_GROUP_SQLDB)
+        app = self.netbox_env.get_installed_app(
+            "db-backup", node_group=NODE_GROUP_SQLDB
+        )
 
         jc.marketplace.Installation.ExecuteAction(
             app_unique_name=app.get("uniqueName"),
@@ -581,7 +583,9 @@ class NetBoxDBBackup(ChangeLoggedModel):
     def restore(self, backup_name):
         # Execute restore
         jc = self.netbox_env._jelastic()
-        app = self.netbox_env.get_installed_app("db-backup", node_group=NODE_GROUP_SQLDB)
+        app = self.netbox_env.get_installed_app(
+            "db-backup", node_group=NODE_GROUP_SQLDB
+        )
 
         jc.marketplace.Installation.ExecuteAction(
             app_unique_name=app.get("uniqueName"),
