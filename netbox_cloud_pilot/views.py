@@ -96,10 +96,9 @@ class NetBoxSettingsView(PermissionRequiredMixin, GetReturnURLMixin, View):
             job = obj.enqueue_job(obj.apply_settings, data=form_data, request=request)
             messages.success(
                 request,
-                f"Job <a href='{job.get_absolute_url()}'>{job}</a> created successfully.",
+                "Job has been created successfully.",
             )
-            return_url = self.get_return_url(request, obj)
-            return redirect(return_url)
+            return redirect("core:job", pk=job.pk)
 
         return render(
             request,
