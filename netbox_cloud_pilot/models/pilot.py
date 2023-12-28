@@ -13,16 +13,17 @@ from jelastic import Jelastic
 from jelastic.api.exceptions import JelasticApiError
 
 import json
+from core.models import Job
 from netbox.config import get_config
-from netbox.models import PrimaryModel, ChangeLoggedModel
-from .constants import *
+from netbox.models import ChangeLoggedModel, JobsMixin, PrimaryModel
+from ..constants import *
 
 __all__ = ("NetBoxConfiguration", "NetBoxDBBackup")
 
 logger = logging.getLogger(__name__)
 
 
-class NetBoxConfiguration(PrimaryModel):
+class NetBoxConfiguration(JobsMixin, PrimaryModel):
     """
     NetBoxConfig is a model that represents the configuration of NetBox.
     """
@@ -378,6 +379,41 @@ class NetBoxConfiguration(PrimaryModel):
             target_app_id=env_info.get("appid"),
             app_template_id=app_id,
         )
+
+    def enqueue_job(self, func, job_name=None, request=None, *args, **kwargs):
+        """
+        Enqueue a job to run a function.
+        """
+        # Determine the job name from the func name
+        if not job_name:
+            job_name = func.__name__
+
+        kwargs['_func'] = func
+
+        job = Job.enqueue(
+            self._run_job,
+            self,
+            name=job_name,
+            user=request.user if request else None,
+            *args,
+            **kwargs,
+        )
+        return job
+
+    def _run_job(self, job, *args, **kwargs):
+        """
+        Run a function in a job.
+        """
+        job.start()
+        func = kwargs.pop("_func")
+        result = func(*args, **kwargs)
+
+        job.data = {
+            'result': result,
+            'params': kwargs,
+        }
+
+        job.terminate()
 
 
 class NetBoxDBBackup(ChangeLoggedModel):
