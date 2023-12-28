@@ -56,6 +56,7 @@ class NetBoxNodeLog(PermissionRequiredMixin, View):
             "netbox_cloud_pilot/nodelogs.html",
             {
                 "object": instance,
+                "env_name": env_name,
                 "node": node,
                 "logs": logs,
             },
