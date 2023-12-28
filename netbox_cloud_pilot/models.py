@@ -1,4 +1,5 @@
 import logging
+import traceback
 import re
 from datetime import datetime
 from functools import lru_cache
@@ -280,7 +281,7 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
         for key, value in data.items():
             try:
                 value = json.loads(value)
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, TypeError):
                 pass
 
             if not value:
@@ -419,6 +420,7 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
 
             job.terminate()
         except Exception as e:
+            logger.error(traceback.format_exc())
             data.update({"error": str(e)})
             job.terminate(status=JobStatusChoices.STATUS_ERRORED)
 
