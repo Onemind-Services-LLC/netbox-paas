@@ -15,8 +15,9 @@ from jelastic.api.exceptions import JelasticApiError
 import json
 from core.models import Job
 from netbox.config import get_config
-from netbox.models import ChangeLoggedModel, JobsMixin, PrimaryModel
-from ..constants import *
+from netbox.models import ChangeLoggedModel, PrimaryModel
+from netbox.models.features import JobsMixin
+from .constants import *
 
 __all__ = ("NetBoxConfiguration", "NetBoxDBBackup")
 
@@ -400,7 +401,8 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
         )
         return job
 
-    def _run_job(self, job, *args, **kwargs):
+    @staticmethod
+    def _run_job(job, *args, **kwargs):
         """
         Run a function in a job.
         """
@@ -542,7 +544,7 @@ class NetBoxDBBackup(ChangeLoggedModel):
     def backup(self):
         # Execute backup
         jc = self.netbox_env._jelastic()
-        app = self.netbox_env.get_installed_app("db-backup")
+        app = self.netbox_env.get_installed_app("db-backup", node_group=NODE_GROUP_SQLDB)
 
         jc.marketplace.Installation.ExecuteAction(
             app_unique_name=app.get("uniqueName"),
@@ -575,7 +577,7 @@ class NetBoxDBBackup(ChangeLoggedModel):
     def restore(self, backup_name):
         # Execute restore
         jc = self.netbox_env._jelastic()
-        app = self.netbox_env.get_installed_app("db-backup")
+        app = self.netbox_env.get_installed_app("db-backup", node_group=NODE_GROUP_SQLDB)
 
         jc.marketplace.Installation.ExecuteAction(
             app_unique_name=app.get("uniqueName"),
