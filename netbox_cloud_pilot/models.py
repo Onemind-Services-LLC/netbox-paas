@@ -13,6 +13,7 @@ from jelastic import Jelastic
 from jelastic.api.exceptions import JelasticApiError
 
 import json
+from core.choices import JobStatusChoices
 from core.models import Job
 from netbox.config import get_config
 from netbox.models import ChangeLoggedModel, PrimaryModel
@@ -381,41 +382,45 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
             app_template_id=app_id,
         )
 
-    def enqueue_job(self, func, job_name=None, request=None, *args, **kwargs):
+    def enqueue_job(self, func, request=None, *args, **kwargs):
         """
         Enqueue a job to run a function.
         """
         # Determine the job name from the func name
-        if not job_name:
-            job_name = func.__name__
-
         kwargs['_func'] = func
 
         job = Job.enqueue(
             self._run_job,
             self,
-            name=job_name,
+            name=func.__name__,
             user=request.user if request else None,
-            *args,
+            job_timeout=3600,
             **kwargs,
         )
         return job
 
-    @staticmethod
-    def _run_job(job, *args, **kwargs):
+    def _run_job(self, job, *args, **kwargs):
         """
         Run a function in a job.
         """
-        job.start()
-        func = kwargs.pop("_func")
-        result = func(*args, **kwargs)
-
-        job.data = {
-            'result': result,
+        data = {
             'params': kwargs,
         }
 
-        job.terminate()
+        try:
+            job.start()
+            func = kwargs.pop("_func")
+            result = func(*args, **kwargs)
+
+            data.update({'result': result})
+
+            job.terminate()
+        except Exception as e:
+            data.update({'error': str(e)})
+            job.terminate(status=JobStatusChoices.STATUS_ERRORED)
+
+        job.data = data
+        job.save()
 
 
 class NetBoxDBBackup(ChangeLoggedModel):
@@ -484,9 +489,8 @@ class NetBoxDBBackup(ChangeLoggedModel):
         return " ".join(croniter(self.crontab).expressions)
 
     def save(self, *args, **kwargs):
-        # Install the addon
-        self.netbox_env.install_addon(
-            app_id="db-backup",
+        self.netbox_env.enqueue_job(
+            self.netbox_env.install_addon,
             node_group=NODE_GROUP_SQLDB,
             settings={
                 "scheduleType": 3,
@@ -501,8 +505,8 @@ class NetBoxDBBackup(ChangeLoggedModel):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        # Uninstall the addon
-        self.netbox_env.uninstall_addon(
+        self.netbox_env.enqueue_job(
+            self.netbox_env.uninstall_addon,
             app_id="db-backup",
             node_group=NODE_GROUP_SQLDB,
             search={"nodeType": "postgresql", "app_id": "db-backup"},

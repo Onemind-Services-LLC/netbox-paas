@@ -93,8 +93,12 @@ class NetBoxSettingsView(PermissionRequiredMixin, GetReturnURLMixin, View):
             # All keys must be uppercase
             form_data = {k.upper(): v for k, v in form.cleaned_data.items()}
             # Call Jelastic to apply the ENV_VARs on all NetBox nodes (including workers)
-            obj.apply_settings(form_data)
-            messages.success(request, "Settings applied successfully.")
+            job = obj.enqueue_job(
+                obj.apply_settings,
+                data=form_data,
+                request=request
+            )
+            messages.success(request, f"Job <a href='{job.get_absolute_url()}'>{job}</a> created successfully.")
             return_url = self.get_return_url(request, obj)
             return redirect(return_url)
 
