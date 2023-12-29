@@ -70,7 +70,7 @@ class NetBoxSettingsView(PermissionRequiredMixin, GetReturnURLMixin, View):
 
     def get(self, request, *args, **kwargs):
         obj = get_object_or_404(models.NetBoxConfiguration, pk=kwargs["pk"])
-        form = forms.NetBoxSettingsForm(initial=obj.netbox_settings)
+        form = forms.NetBoxSettingsForm(initial=obj.netbox_settings())
 
         return render(
             request,
@@ -89,7 +89,7 @@ class NetBoxSettingsView(PermissionRequiredMixin, GetReturnURLMixin, View):
     def post(self, request, *args, **kwargs):
         obj = get_object_or_404(models.NetBoxConfiguration, pk=kwargs["pk"])
 
-        form = forms.NetBoxSettingsForm(request.POST, initial=obj.netbox_settings)
+        form = forms.NetBoxSettingsForm(request.POST, initial=obj.netbox_settings())
         if form.is_valid():
             # All keys must be uppercase
             form_data = {k.upper(): v for k, v in form.cleaned_data.items()}

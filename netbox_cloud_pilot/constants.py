@@ -29,8 +29,8 @@ NETBOX_SETTINGS = NbSettings(
                 Param(
                     key="ALLOWED_HOSTS",
                     label="Allowed Hosts",
-                    help_text="List of valid hostnames for this server",
-                    placeholder="['netbox.example.com', 'localhost']",
+                    help_text="Space separated list of allowed hosts (FQDN, IP address, or pattern), or '*' for all",
+                    placeholder="netbox.example.com localhost",
                 ),
                 Param(
                     key="DB_CONN_MAX_AGE",
@@ -286,7 +286,7 @@ NETBOX_SETTINGS = NbSettings(
                     key="INTERNAL_IPS",
                     label="Internal IPs",
                     help_text="List of internal IP addresses",
-                    placeholder="['127.0.0.1']",
+                    placeholder="127.0.0.1, ::1",
                     required=False,
                 ),
                 Param(
@@ -362,7 +362,7 @@ NETBOX_SETTINGS = NbSettings(
                     key="ALLOWED_URL_SCHEMES",
                     label="Allowed URL Schemes",
                     help_text="List of allowed URL schemes",
-                    placeholder="['http', 'https']",
+                    placeholder="http, https",
                     required=False,
                 ),
                 Param(

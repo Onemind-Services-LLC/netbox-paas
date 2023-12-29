@@ -218,7 +218,6 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
         container_var = self._env_var_by_group(NODE_GROUP_CP).get("object", {})
         return getattr(get_config(), variable, container_var.get(variable, ""))
 
-    @property
     def netbox_admin(self):
         """
         Return the administration credentials for NetBox.
@@ -237,7 +236,6 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
 
         return var
 
-    @property
     def netbox_settings(self):
         """
         Return the configuration settings, including environment variables for the settings.

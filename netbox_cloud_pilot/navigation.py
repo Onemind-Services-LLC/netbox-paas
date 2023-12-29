@@ -21,6 +21,7 @@ menu = PluginMenu(
                 PluginMenuItem(
                     link_text="Plugins Store",
                     link="plugins:netbox_cloud_pilot:netboxplugin_list",
+                    permissions=["netbox_cloud_pilot.view_netboxconfiguration"],
                 ),
             ),
         ),
