@@ -49,8 +49,10 @@ class NetBoxNodeLog(PermissionRequiredMixin, View):
         env_name = request.POST.get("env_name")
         node_id = request.POST.get("node_id")
 
-        node = instance.env_node(env_name, node_id)
-        logs = instance.read_node_log(node_id)
+        iaas = instance.iaas(env_name)
+
+        node = iaas.get_node(node_id)
+        logs = iaas.get_node_log(node_id)
         return render(
             request,
             "netbox_cloud_pilot/nodelogs.html",
@@ -122,9 +124,14 @@ class NetBoxRestartView(PermissionRequiredMixin, View):
         Restarts container by node group.
         """
         instance = get_object_or_404(models.NetBoxConfiguration, pk=pk)
+        env_name = request.POST.get("env_name")
         node_group = request.POST.get("node_group")
-        instance.restart_node_group(node_group)
-        messages.success(request, "Restarted successfully.")
+        job = instance.enqueue(
+            instance.iaas(env_name, auto_init=False).restart_nodes,
+            request,
+            node_groups=[node_group],
+        )
+        messages.success(request, utils.job_msg(job))
         return redirect(
             "plugins:netbox_cloud_pilot:netboxconfiguration", pk=instance.pk
         )
@@ -165,8 +172,9 @@ class NetBoxStorageView(PermissionRequiredMixin, GetReturnURLMixin, View):
             env_name += "".join([random.choice(string.digits) for _ in range(7)])
 
             # Deploy a new environment for backup-storage
-            jc = obj._jelastic()
-            jc.marketplace.App.Install(
+            job = obj.enqueue(
+                obj.iaas(env_name, auto_init=False).client.marketplace.App.Install,
+                request,
                 id="wp-restore",
                 env_name=env_name,
                 settings={
@@ -178,11 +186,12 @@ class NetBoxStorageView(PermissionRequiredMixin, GetReturnURLMixin, View):
                 region=form.cleaned_data["region"],
                 skip_email=True,
             )
+
             obj.env_name_storage = env_name
             obj.save()
 
-            return_url = self.get_return_url(request, obj)
-            return redirect(return_url)
+            messages.success(request, utils.job_msg(job))
+            return redirect("core:job", pk=job.pk)
 
         return render(
             request,
@@ -237,13 +246,9 @@ class NetBoxDBBackupBackupView(PermissionRequiredMixin, View):
         """
         instance = get_object_or_404(models.NetBoxDBBackup, pk=pk)
 
-        try:
-            instance.backup()
-            messages.success(request, "Backup created successfully.")
-        except JelasticApiError as e:
-            messages.error(request, e)
-
-        return redirect("plugins:netbox_cloud_pilot:netboxdbbackup", pk=instance.pk)
+        job = instance.backup(request)
+        messages.success(request, utils.job_msg(job))
+        return redirect("core:job", pk=job.pk)
 
 
 @register_model_view(models.NetBoxDBBackup, "restore")
@@ -258,20 +263,15 @@ class NetBoxDBBackupRestoreView(PermissionRequiredMixin, View):
         instance = get_object_or_404(models.NetBoxDBBackup, pk=pk)
         backup_name = request.POST.get("name")
 
-        try:
-            instance.restore(backup_name)
-            messages.success(request, "Backup restored successfully.")
-        except JelasticApiError as e:
-            messages.error(request, e)
-
+        job = instance.restore(request, backup_name)
+        messages.success(request, utils.job_msg(job))
         return redirect("plugins:netbox_cloud_pilot:netboxdbbackup", pk=instance.pk)
 
 
 class NetBoxPluginListView(View):
     def get(self, request):
         if nc := models.NetBoxConfiguration.objects.first():
-            addons = nc.list_addons(
-                env_name=nc.env_name,
+            addons = nc.get_env().get_addons(
                 node_group=constants.NODE_GROUP_CP,
                 search={"categories": ["apps/netbox-plugins"]},
             )
@@ -336,16 +336,18 @@ class NetBoxPluginInstallView(generic.ObjectEditView):
         form = self.initialize_form(request)
 
         if form.is_valid():
-            try:
-                obj.install_addon(
-                    app_id=form.cleaned_data["plugin_name"],
-                    node_group=constants.NODE_GROUP_CP,
-                    settings=form.cleaned_data["configuration"],
-                )
-                return redirect("plugins:netbox_cloud_pilot:netboxplugin_list")
-            except JelasticApiError as e:
-                messages.error(request, e)
-                form.add_error(None, e)
+            plugin = utils.get_plugins_list().get(form.cleaned_data["plugin_name"])
+
+            job = obj.enqueue(
+                obj.get_env().install_plugin,
+                request,
+                app_id=form.cleaned_data["plugin_name"],
+                version=form.cleaned_data["plugin_version"],
+                netbox_name=plugin["netbox_name"],
+                plugin_settings=form.cleaned_data["configuration"],
+            )
+            messages.success(request, utils.job_msg(job))
+            return redirect("core:job", pk=job.pk)
 
         return render(
             request,
@@ -395,16 +397,12 @@ class NetBoxPluginUninstallView(generic.ObjectDeleteView):
         plugin = utils.get_plugins_list().get(request.POST.get("plugin_name"))
 
         if form.is_valid():
-            try:
-                obj.uninstall_addon(
-                    app_id=plugin["plugin_id"],
-                    node_group=constants.NODE_GROUP_CP,
-                )
-                messages.success(request, "Plugin uninstalled successfully.")
-                return redirect("plugins:netbox_cloud_pilot:netboxplugin_list")
-            except JelasticApiError as e:
-                messages.error(request, e)
-                form.add_error(None, e)
+            job = obj.enqueue(
+                obj.get_env().uninstall_plugin, request, app_id=plugin["plugin_id"]
+            )
+
+            messages.success(request, utils.job_msg(job))
+            return redirect("core:job", pk=job.pk)
 
         return render(
             request,

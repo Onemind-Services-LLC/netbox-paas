@@ -36,7 +36,7 @@
                         </tr>
                         <tr>
                             <th scope="row">Infrastructure Access</th>
-                            <td><a href="{{ object.admin_url }}" target="_blank">{{ object.admin_url }}</a></td>
+                            <td><a href="{{ object.get_env.admin_url }}" target="_blank">{{ object.get_env.admin_url }}</a></td>
                         </tr>
                         <tr>
                             <th scope="row">Storage Environment</th>
@@ -97,19 +97,19 @@
     </div>
     <div class="row mb-3">
         <div class="col col-md-6">
-            {% include 'netbox_cloud_pilot/inc/env_info.html' with card_header="NetBox" env_info=object.env_info %}
+            {% include 'netbox_cloud_pilot/inc/env_info.html' with card_header="NetBox" env_info=object.get_env.get_env %}
         </div>
         <div class="col col-md-6">
-            {% include 'netbox_cloud_pilot/inc/env_node_groups.html' with card_header="NetBox" node_groups=object.env_node_groups env_name=object.env_name object=object %}
+            {% include 'netbox_cloud_pilot/inc/env_node_groups.html' with card_header="NetBox" node_groups=object.get_env.get_node_groups env_name=object.env_name object=object %}
         </div>
     </div>
     {% if object.env_name_storage %}
         <div class="row mb-3">
             <div class="col col-md-6">
-                {% include 'netbox_cloud_pilot/inc/env_info.html' with card_header="Storage" env_info=object.env_storage_info %}
+                {% include 'netbox_cloud_pilot/inc/env_info.html' with card_header="Storage" env_info=object.get_env_storage.get_env %}
             </div>
             <div class="col col-md-6">
-                {% include 'netbox_cloud_pilot/inc/env_node_groups.html' with card_header="Storage" node_groups=object.env_storage_node_groups env_name=object.env_name_storage object=object %}
+                {% include 'netbox_cloud_pilot/inc/env_node_groups.html' with card_header="Storage" node_groups=object.get_env_storage.get_node_groups env_name=object.env_name_storage object=object %}
             </div>
         </div>
     {% endif %}

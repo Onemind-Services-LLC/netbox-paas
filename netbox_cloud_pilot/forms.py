@@ -50,7 +50,7 @@ class NetBoxConfigurationForm(NetBoxModelForm):
         help_text="Jelastic environment name where the NetBox instance is running.",
     )
 
-    env_name_storage = forms.CharField(
+    env_name_storage = forms.ChoiceField(
         label="Environment Name",
         required=False,
         help_text="Jelastic environment name where the backup storage is running.",
@@ -78,6 +78,28 @@ class NetBoxConfigurationForm(NetBoxModelForm):
             "env_name_storage",
             "license",
         )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields["env_name_storage"].initial = self.instance.env_name_storage
+
+        env_infos = (
+            self.instance.iaas(self.instance.env_name, auto_init=False)
+            .client.environment.Control.GetEnvs()
+            .get("infos", [])
+        )
+
+        # Fetch the environment list and build the choices
+        self.fields["env_name_storage"].choices = [
+            (
+                env_info["env"]["envName"],
+                f"{env_info['env']['displayName']} ({env_info['env']['envName']})",
+            )
+            for env_info in env_infos
+            if env_info.get("env", {}).get("properties", {}).get("projectScope", "")
+            == "backup"
+        ]
 
 
 class NetBoxSettingsForm(BootstrapMixin, forms.Form):
@@ -158,7 +180,11 @@ class NetBoxBackupStorageForm(BootstrapMixin, forms.Form):
 
         # Fetch the region list and build the choices
         nc = NetBoxConfiguration.objects.first()
-        regions = nc._jelastic().environment.Control.GetRegions().get("array", [])
+        regions = (
+            nc.iaas(nc.env_name, auto_init=False)
+            .client.environment.Control.GetRegions()
+            .get("array", [])
+        )
         self.fields["region"].choices = [
             (hard_node_group["uniqueName"], region["displayName"])
             for region in regions
