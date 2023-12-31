@@ -1,0 +1,76 @@
+<div class="card">
+    <h5 class="card-header">{{ card_header }} Node Groups</h5>
+    <div class="card-body">
+        <div class="accordion" id="{{ card_header }}nodegroup">
+            {% for node_group in node_groups %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="{{ card_header }}nodegroup{{ forloop.counter }}-heading">
+                        <button class="accordion-button collapsed" type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#{{ card_header }}nodegroup{{ forloop.counter }}-collapse"
+                                aria-expanded="false"
+                                aria-controls="{{ card_header }}nodegroup{{ forloop.counter }}-collapse">
+                            {{ node_group.displayName|default:node_group.name|title }}
+                        </button>
+                    </h2>
+                </div>
+                <div id="{{ card_header }}nodegroup{{ forloop.counter }}-collapse" class="accordion-collapse collapse"
+                     aria-labelledby="{{ card_header }}nodegroup{{ forloop.counter }}-heading" data-bs-parent="#{{ card_header }}nodegroup">
+                    <div class="accordion-body">
+                        <table class="table table-hover">
+                            <tr>
+                                <th scope="row">Type</th>
+                                <td>{{ node_group.templateType|title }}</td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Scaling Mode</th>
+                                <td>{{ node_group.scalingMode|title }}</td>
+                            </tr>
+                            <tr>
+                                <th scope="row">SLB Access</th>
+                                <td>
+                                    {% if node_group.isSLBAccessEnabled %}
+                                        <span class="text-success">Enabled</span>
+                                    {% else %}
+                                        <span class="text-danger">Disabled</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Features</th>
+                                <td>{{ node_group.features|join:", "|title|placeholder }}</td>
+                            </tr>
+                        </table>
+                        <div class="noprint text-end">
+                            <form
+                                    method="post"
+                            >
+                                {% csrf_token %}
+                                <input type="hidden" name="env_name" value="{{ env_name }}">
+                                <input type="hidden" name="node_id" value="{{ node_group.node.id }}">
+                                <input type="hidden" name="node_group" value="{{ node_group.name }}">
+
+                                <button
+                                        type="submit"
+                                        class="btn btn-sm btn-danger"
+                                        formaction="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_restart' pk=object.pk %}"
+                                >
+                                    <i class="mdi mdi-restart"></i> Restart
+                                </button>
+
+                                <button
+                                        type="submit"
+                                        class="btn btn-sm btn-primary"
+                                        formaction="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_logs' pk=object.pk %}"
+
+                                >
+                                    <i class="mdi mdi-file-document-outline"></i> Logs
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>

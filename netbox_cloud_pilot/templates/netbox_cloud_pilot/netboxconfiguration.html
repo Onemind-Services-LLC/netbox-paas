@@ -1,0 +1,116 @@
+{% extends 'generic/object.html' %}
+{% load buttons %}
+{% load perms %}
+
+{% block controls %}
+    <div class="controls">
+        <div class="control-group">
+            {% if perms.netbox_cloud_pilot.change_netboxconfiguration %}
+                <a href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_settings' pk=object.pk %}"
+                   class="btn btn-sm btn-cyan">
+                    <span class="mdi mdi-pencil" aria-hidden="true"></span> Edit NetBox Settings
+                </a>
+            {% endif %}
+
+            {% if request.user|can_change:object %}
+                {% edit_button object %}
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block content %}
+    <div class="row mb-3">
+        <div class="col col-md-6">
+            <div class="card">
+                <h5 class="card-header">Overview</h5>
+                <div class="card-body">
+                    <table class="table table-hover attr-table">
+                        <tr>
+                            <th scope="row">Environment Name</th>
+                            <td>{{ object.env_name }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Description</th>
+                            <td>{{ object.description|placeholder }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Infrastructure Access</th>
+                            <td><a href="{{ object.get_env.admin_url }}" target="_blank">{{ object.get_env.admin_url }}</a></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Storage Environment</th>
+                            <td>
+                                {% if object.env_name_storage %}
+                                    {{ object.env_name_storage }}
+                                {% else %}
+                                    <a href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_backup_storage' pk=object.pk %}"
+                                       class="btn btn-sm btn-primary">
+                                        <i class="mdi mdi-plus-thick"></i> Add Backup Storage
+                                    </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Enterprise</th>
+                            <td>
+                                {% if object.license %}
+                                    <span class="text-success">Yes</span>
+                                {% else %}
+                                    <span class="text-danger">No</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col col-md-6">
+            <div class="card">
+                <h5 class="card-header">NetBox Admin Access</h5>
+                <div class="card-body">
+                    <table class="table table-hover attr-table">
+                        <tr>
+                            <th scope="row">URL</th>
+                            <td>
+                                <a href="{{ object.netbox_admin.url }}" target="_blank">
+                                    {{ object.netbox_admin.url }}
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Superuser Email</th>
+                            <td>{{ object.netbox_admin.SUPERUSER_EMAIL }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Superuser Username</th>
+                            <td>{{ object.netbox_admin.SUPERUSER_NAME }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Superuser Password</th>
+                            <td>{{ object.netbox_admin.SUPERUSER_PASSWORD }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row mb-3">
+        <div class="col col-md-6">
+            {% include 'netbox_cloud_pilot/inc/env_info.html' with card_header="NetBox" env_info=object.get_env.get_env %}
+        </div>
+        <div class="col col-md-6">
+            {% include 'netbox_cloud_pilot/inc/env_node_groups.html' with card_header="NetBox" node_groups=object.get_env.get_node_groups env_name=object.env_name object=object %}
+        </div>
+    </div>
+    {% if object.env_name_storage %}
+        <div class="row mb-3">
+            <div class="col col-md-6">
+                {% include 'netbox_cloud_pilot/inc/env_info.html' with card_header="Storage" env_info=object.get_env_storage.get_env %}
+            </div>
+            <div class="col col-md-6">
+                {% include 'netbox_cloud_pilot/inc/env_node_groups.html' with card_header="Storage" node_groups=object.get_env_storage.get_node_groups env_name=object.env_name_storage object=object %}
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

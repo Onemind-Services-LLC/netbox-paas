@@ -1,0 +1,51 @@
+{% extends 'generic/object.html' %}
+{% load render_table from django_tables2 %}
+
+{% block extra_controls %}
+    <form method="post">
+        {% csrf_token %}
+        <button formaction="{% url 'plugins:netbox_cloud_pilot:netboxdbbackup_backup' pk=object.pk %}"
+                class="btn btn-sm btn-primary">
+            <span class="mdi mdi-download-outline" aria-hidden="true"></span> Backup Now
+        </button>
+    </form>
+{% endblock %}
+
+{% block content %}
+    <div class="row mb-3">
+        <div class="col col-md-6">
+            <div class="card">
+                <h5 class="card-header">Overview</h5>
+                <div class="card-body">
+                    <table class="table table-hover attr-table">
+                        <tr>
+                            <th scope="row">Cron</th>
+                            <td>{{ object.crontab }} ({{ object.cron }})</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Keep Backups</th>
+                            <td>{{ object.keep_backups }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">NetBox Environment</th>
+                            <td>{{ object.netbox_env|linkify }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% if backup_table.rows %}
+        <div class="row mb-3">
+            <div class="col col-md-12">
+                <div class="card">
+                    <h5 class="card-header">Backups</h5>
+                    <div class="card-body table-responsive">
+                        {% render_table backup_table 'inc/table.html' %}
+                        {% include 'inc/paginator.html' with paginator=table.paginator page=backup_table.page %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

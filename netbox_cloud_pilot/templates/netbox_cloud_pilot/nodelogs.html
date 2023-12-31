@@ -1,0 +1,33 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}{{ node.name }} ({{ node.id }}){% endblock %}
+
+{% block content %}
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <div class="float-end">
+                        <form
+                                action="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_logs' pk=object.pk %}"
+                                method="post"
+                        >
+                            {% csrf_token %}
+                            <input type="hidden" name="env_name" value="{{ env_name }}">
+                            <input type="hidden" name="node_id" value="{{ node.id }}">
+                            <button type="submit" class="btn btn-sm btn-primary" role="button">
+                                <i class="mdi mdi-refresh"></i> Refresh
+                            </button>
+                        </form>
+                    </div>
+                    <h5>Logs</h5>
+                </div>
+                {% if logs %}
+                    <pre class="card-body">{{ logs }}</pre>
+                {% else %}
+                    <div class="card-body text-muted">No logs found</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

@@ -1,0 +1,39 @@
+<div class="card">
+    <h5 class="card-header">{{ card_header }} Environment Overview</h5>
+    <div class="card-body">
+        <table class="table table-hover attr-table">
+            <tr>
+                <th scope="row">Display Name</th>
+                <td>{{ env_info.displayName }}</td>
+            </tr>
+            <tr>
+                <th scope="row">Built-in SSL</th>
+                <td>
+                    {% if env_info.sslstate %}
+                        <span class="text-success">Enabled</span>
+                    {% else %}
+                        <span class="text-danger">Disabled</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">Created On</th>
+                <td>{{ env_info.createdOn }}</td>
+            </tr>
+            <tr>
+                <th scope="row">Firewall</th>
+                <td>
+                    {% if env_info.isFirewallEnabled %}
+                        <span class="text-success">Enabled</span>
+                    {% else %}
+                        <span class="text-danger">Disabled</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">Host Group</th>
+                <td>{{ env_info.hostGroup.displayName|title }}</td>
+            </tr>
+        </table>
+    </div>
+</div>
