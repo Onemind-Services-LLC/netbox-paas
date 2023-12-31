@@ -1,3 +1,4 @@
+import ast
 import logging
 import re
 from datetime import datetime
@@ -10,12 +11,18 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinLengthValidator, MaxLengthValidator
 from django.db import models
 from django.urls import reverse
+from django.utils.text import slugify
 from jelastic.api.exceptions import JelasticApiError
 
 import json
 from netbox.models import ChangeLoggedModel, PrimaryModel
 from netbox.models.features import JobsMixin
-from .constants import NETBOX_SUPERUSER_SETTINGS, NETBOX_SETTINGS, NODE_GROUP_SQLDB
+from .constants import (
+    NETBOX_SUPERUSER_SETTINGS,
+    NETBOX_SETTINGS,
+    NODE_GROUP_SQLDB,
+    NODE_GROUP_CP,
+)
 from .iaas import *
 
 __all__ = ("NetBoxConfiguration", "NetBoxDBBackup")
@@ -135,7 +142,7 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
                 initial = env.get_env_var(param.key, param.initial)
 
                 # Alter list of strings to comma-separated string
-                if isinstance(initial, list) and all(
+                if isinstance(initial, (tuple, list)) and all(
                     [isinstance(x, str) for x in initial]
                 ):
                     initial = ", ".join(initial)
@@ -146,6 +153,82 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
 
         return config
 
+    def apply_settings(self, data: dict):
+        """
+        Apply NetBox settings.
+        """
+        logger.debug(f"Applying NetBox settings: {data}")
+
+        all_keys = [
+            param.key
+            for section in NETBOX_SETTINGS.sections
+            for param in section.params
+        ]
+
+        env = self.get_env()
+        # Get all NetBox node groups
+        node_groups = env.get_nb_node_groups()
+
+        for node_group in node_groups:
+            logger.debug(f"Applying settings to node group: {node_group}")
+
+            node_group_name = node_group.get("name")
+            env_vars = env.get_env_vars(node_group_name)
+
+            # Filter env_vars with keys that exist in all_keys only
+            env_vars = {k: v for k, v in env_vars.items() if k in all_keys}
+
+            # Remove all filtered env_vars
+            env.remove_env_vars(node_group_name, list(env_vars.keys()))
+
+            for section, params in data.items():
+                if section is None:
+                    vars = {}
+                    # These values are to be updated in the environment variables
+                    for key, value in params.items():
+                        if value:
+                            vars[key] = value
+                    env.add_env_vars(node_group_name, vars)
+
+        # Update the files on the NODE_GROUP_CP with named sections
+        for section, params in data.items():
+            file_content = ""
+
+            if section is not None:
+                file_path = f"/etc/netbox/config/{slugify(section)}.py"
+                # Delete the file
+                env.client.environment.File.Delete(
+                    env_name=self.env_name,
+                    path=file_path,
+                    node_group=NODE_GROUP_CP,
+                    master_only=True,
+                )
+
+                # Construct the file content
+                for key, value in params.items():
+                    if value:
+                        try:
+                            file_content += f"{key} = {ast.literal_eval(value)}\n"
+                        except (ValueError, SyntaxError):
+                            if isinstance(value, str):
+                                file_content += f"{key} = '{value}'\n"
+                            else:
+                                file_content += f"{key} = {value}\n"
+
+                if file_content:
+                    logger.debug(f"Writing file: {file_path}")
+                    # Create the section file
+                    env.client.environment.File.Write(
+                        env_name=self.env_name,
+                        path=file_path,
+                        body=file_content,
+                        node_group=NODE_GROUP_CP,
+                        master_only=True,
+                    )
+
+        # Schedule a restart of the NetBox environment
+        self.schedule_restart()
+
     def enqueue(self, func, request, *args, **kwargs):
         return self.iaas(self.env_name).enqueue(
             func,
@@ -153,6 +236,17 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
             request,
             *args,
             **kwargs,
+        )
+
+    def schedule_restart(self):
+        """
+        Schedule a restart of the NetBox environment.
+        """
+        logger.debug(f"Scheduling restart of NetBox environment: {self.env_name}")
+        env = self.get_env()
+        env.restart_nodes(
+            [group["name"] for group in env.get_nb_node_groups()],
+            lazy=True,
         )
 
 

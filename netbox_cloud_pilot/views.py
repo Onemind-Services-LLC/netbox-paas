@@ -6,7 +6,6 @@ from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.shortcuts import redirect, get_object_or_404, render
 from django.urls import reverse
 from django.views.generic import View
-from jelastic.api.exceptions import JelasticApiError
 
 from netbox.views import generic
 from utilities.forms import ConfirmationForm
@@ -93,14 +92,13 @@ class NetBoxSettingsView(PermissionRequiredMixin, GetReturnURLMixin, View):
 
         form = forms.NetBoxSettingsForm(request.POST, initial=obj.netbox_settings())
         if form.is_valid():
-            # All keys must be uppercase
-            form_data = {k.upper(): v for k, v in form.cleaned_data.items()}
             # Call Jelastic to apply the ENV_VARs on all NetBox nodes (including workers)
-            job = obj.enqueue_job(obj.apply_settings, data=form_data, request=request)
-            messages.success(
+            job = obj.enqueue(
+                obj.apply_settings,
                 request,
-                "Job has been created successfully.",
+                data=form.cleaned_data,
             )
+            messages.success(request, utils.job_msg(job))
             return redirect("core:job", pk=job.pk)
 
         return render(

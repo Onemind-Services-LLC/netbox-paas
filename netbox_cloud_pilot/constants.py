@@ -29,8 +29,8 @@ NETBOX_SETTINGS = NbSettings(
                 Param(
                     key="ALLOWED_HOSTS",
                     label="Allowed Hosts",
-                    help_text="Space separated list of allowed hosts (FQDN, IP address, or pattern), or '*' for all",
-                    placeholder="netbox.example.com localhost",
+                    help_text="Comma separated list of allowed hosts (FQDN, IP address, or pattern), or '*' for all",
+                    placeholder="netbox.example.com, localhost",
                 ),
                 Param(
                     key="DB_CONN_MAX_AGE",

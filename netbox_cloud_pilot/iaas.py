@@ -4,6 +4,7 @@ from functools import lru_cache
 import yaml
 from django.conf import settings
 from jelastic import Jelastic
+from jelastic.api.exceptions import JelasticApiError
 
 from core.choices import JobStatusChoices
 from core.models import Job
@@ -220,7 +221,16 @@ class IaaS(IaaSJob):
             env_name=self.env_name, node_group=node_group, vars=env_vars
         )
 
-    def remove_env_vars(self, node_group, env_vars):
+    def get_env_vars(self, node_group):
+        """
+        Get environment variables for a node group.
+        """
+        logger.debug(f"Getting environment variables for node group {node_group}")
+        return self.client.environment.Control.GetContainerEnvVarsByGroup(
+            env_name=self.env_name, node_group=node_group
+        ).get("object", {})
+
+    def remove_env_vars(self, node_group, env_vars: list[str]):
         """
         Remove environment variables from a node group.
         """
@@ -229,19 +239,9 @@ class IaaS(IaaSJob):
             env_name=self.env_name, node_group=node_group, vars=env_vars
         )
 
-    def update_env_vars(self, node_groups: list[str], env_vars: dict):
-        """
-        Update environment variables for a list of node groups.
-        """
-        logger.debug(
-            f"Updating environment variables for node groups {', '.join(node_groups)}"
-        )
-
-        for node_group in node_groups:
-            self.remove_env_vars(node_group=node_group, env_vars=env_vars.keys())
-            self.add_env_vars(node_group=node_group, env_vars=env_vars)
-
-    def restart_nodes(self, node_groups: list[str], lazy: bool = False):
+    def restart_nodes(
+        self, node_groups: list[str], lazy: bool = False, delay: int = 10000
+    ):
         """
         Restart nodes for a list of node groups.
         """
@@ -261,18 +261,21 @@ class IaaS(IaaSJob):
                 return { result: 0, message: 'Restarted ' + nodeGroup}
                 """
 
-                result = self.client.development.Scripting.GetScripts(
-                    app_id=app_id,
-                    type="js",
-                )
-                scripts = result.get("scripts", [])
-                for script in scripts:
-                    if script.get("name") == script_name:
-                        logger.debug(f"Deleting existing script {script_name}")
-                        self.client.development.Scripting.DeleteScript(
-                            app_id=app_id, name=script_name
-                        )
-                        continue
+                try:
+                    result = self.client.development.Scripting.GetScripts(
+                        app_id=app_id,
+                        type="js",
+                    )
+                    scripts = result.get("scripts", [])
+                    for script in scripts:
+                        if script.get("name") == script_name:
+                            logger.debug(f"Deleting existing script {script_name}")
+                            self.client.development.Scripting.DeleteScript(
+                                app_id=app_id, name=script_name
+                            )
+                            continue
+                except JelasticApiError as e:
+                    logger.error(e)
 
                 self.client.development.Scripting.CreateScript(
                     app_id=app_id, name=script_name, type="js", code=script_code
@@ -282,7 +285,7 @@ class IaaS(IaaSJob):
                 task_result = self.client.utils.Scheduler.CreateEnvTask(
                     env_name=self.env_name,
                     script=script_name,
-                    trigger={"once_delay": 10000},
+                    trigger={"once_delay": delay},
                     description=f"Restart {node_group} nodes",
                     params={"envName": self.env_name, "nodeGroup": node_group},
                 )
@@ -365,13 +368,16 @@ class IaaS(IaaSJob):
         logger.info(msg)
         return {"result": 0, "message": msg}
 
+    def get_master_node(self, node_group):
+        return self.get_nodes(node_group=node_group, is_master=True)
+
 
 class IaaSNetBox(IaaS):
     """
     This class is used to manage the IaaS layer of the Jelastic platform for NetBox.
     """
 
-    def _get_nb_node_groups(self):
+    def get_nb_node_groups(self):
         """
         Get the environment node groups for NetBox.
         """
@@ -403,7 +409,7 @@ class IaaSNetBox(IaaS):
         )
         return self.restart_nodes(
             node_groups=[
-                node_group["name"] for node_group in self._get_nb_node_groups()
+                node_group["name"] for node_group in self.get_nb_node_groups()
             ],
             lazy=True,
         )
@@ -412,7 +418,7 @@ class IaaSNetBox(IaaS):
         logger.info(f"Updating settings for NetBox plugin {netbox_name}")
 
         # Find NetBox master Node ID
-        node_id = self.get_nodes(node_group=NODE_GROUP_CP, is_master=True).get("id")
+        node_id = self.get_master_node(NODE_GROUP_CP).get("id")
 
         result = self.execute_cmd(
             node_id=node_id,
@@ -451,7 +457,7 @@ class IaaSNetBox(IaaS):
         )
         return self.restart_nodes(
             node_groups=[
-                node_group["name"] for node_group in self._get_nb_node_groups()
+                node_group["name"] for node_group in self.get_nb_node_groups()
             ],
             lazy=True,
         )
@@ -474,12 +480,12 @@ class IaaSNetBox(IaaS):
 
             return self.restart_nodes(
                 node_groups=[
-                    node_group["name"] for node_group in self._get_nb_node_groups()
+                    node_group["name"] for node_group in self.get_nb_node_groups()
                 ],
                 lazy=True,
             )
 
-        msg = f"Addon {app_id} is not installed on node group {node_group}."
+        msg = f"Plugin {app_id} is not installed."
         logger.info(msg)
         return {"result": 0, "message": msg}
 

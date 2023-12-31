@@ -2,11 +2,11 @@ import requests
 from django import forms
 from django.conf import settings
 from django.forms import ValidationError
-
 from netbox.forms import NetBoxModelForm
 from utilities.forms import BootstrapMixin
 from utilities.forms.fields import CommentField
-from .constants import NETBOX_SETTINGS
+
+from .constants import NETBOX_SETTINGS, NODE_GROUP_SQLDB
 from .models import *
 from .utils import *
 
@@ -126,6 +126,25 @@ class NetBoxSettingsForm(BootstrapMixin, forms.Form):
                     **param.field_kwargs,
                 )
 
+    def clean(self):
+        cleaned_data = super().clean()
+
+        data = {}
+
+        # Iterate through each section in NETBOX_SETTINGS
+        for section in NETBOX_SETTINGS.sections:
+            data[section.name] = {}
+
+            # Iterate through each setting in the section
+            for param in section.params:
+                # Get the value of the setting
+                value = cleaned_data.get(param.key.lower())
+
+                # Set the value of the setting
+                data[section.name][param.key.upper()] = value
+
+        return data
+
 
 class NetBoxBackupStorageForm(BootstrapMixin, forms.Form):
     deployment = forms.ChoiceField(
@@ -234,9 +253,11 @@ class NetBoxDBBackupForm(NetBoxModelForm):
 
         if self.instance.pk:
             # Fetch the database password from the addon settings
-            app = self.instance.netbox_env.get_installed_app("db-backup")
-            settings = app.get("settings", {}).get("main", {}).get("data", {})
-            self.fields["db_password"].initial = settings.get("dbpass")
+            app = self.instance.netbox_env.get_env().get_installed_addon(
+                "db-backup", node_group=NODE_GROUP_SQLDB
+            )
+            data = app.get("settings", {}).get("main", {}).get("data", {})
+            self.fields["db_password"].initial = data.get("dbpass")
 
     def clean(self):
         super().clean()
