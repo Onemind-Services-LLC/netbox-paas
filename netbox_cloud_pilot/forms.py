@@ -2,10 +2,10 @@ import requests
 from django import forms
 from django.conf import settings
 from django.forms import ValidationError
+
 from netbox.forms import NetBoxModelForm
 from utilities.forms import BootstrapMixin
 from utilities.forms.fields import CommentField
-
 from .constants import NETBOX_SETTINGS, NODE_GROUP_SQLDB
 from .models import *
 from .utils import *
@@ -84,22 +84,23 @@ class NetBoxConfigurationForm(NetBoxModelForm):
 
         self.fields["env_name_storage"].initial = self.instance.env_name_storage
 
-        env_infos = (
-            self.instance.iaas(self.instance.env_name, auto_init=False)
-            .client.environment.Control.GetEnvs()
-            .get("infos", [])
-        )
-
-        # Fetch the environment list and build the choices
-        self.fields["env_name_storage"].choices = [
-            (
-                env_info["env"]["envName"],
-                f"{env_info['env']['displayName']} ({env_info['env']['envName']})",
+        if self.instance.env_name:
+            env_infos = (
+                self.instance.iaas(self.instance.env_name, auto_init=False)
+                .client.environment.Control.GetEnvs()
+                .get("infos", [])
             )
-            for env_info in env_infos
-            if env_info.get("env", {}).get("properties", {}).get("projectScope", "")
-            == "backup"
-        ]
+
+            # Fetch the environment list and build the choices
+            self.fields["env_name_storage"].choices = [
+                (
+                    env_info["env"]["envName"],
+                    f"{env_info['env']['displayName']} ({env_info['env']['envName']})",
+                )
+                for env_info in env_infos
+                if env_info.get("env", {}).get("properties", {}).get("projectScope", "")
+                == "backup"
+            ]
 
 
 class NetBoxSettingsForm(BootstrapMixin, forms.Form):
@@ -272,14 +273,14 @@ class NetBoxDBBackupForm(NetBoxModelForm):
 
 
 class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
-    plugin_name = forms.CharField(
+    name = forms.CharField(
         label="Plugin Name",
         help_text="Name of the plugin to install.",
         max_length=255,
         disabled=True,
     )
 
-    plugin_version = forms.ChoiceField(
+    version = forms.ChoiceField(
         label="Plugin Version",
         help_text="Version of the plugin to install.",
     )
@@ -292,12 +293,12 @@ class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
     )
 
     fieldsets = (
-        (None, ("plugin_name", "plugin_version")),
+        (None, ("name", "version")),
         ("Configuration", ("configuration",)),
     )
 
     class Meta:
-        fields = ["plugin_name", "plugin_version", "configuration"]
+        fields = ["name", "version", "configuration"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -306,29 +307,28 @@ class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
 
         # Get the plugins.yaml
         plugins = get_plugins_list()
-        if plugin := plugins.get(initial.get("plugin_name")):
-            self.fields["plugin_version"].choices = [
+        if plugin := plugins.get(initial.get("name")):
+            self.fields["version"].choices = [
                 (release, release) for release in filter_releases(plugin)
             ]
 
         if initial.get("type") == "update":
-            from django.apps import apps
+            from importlib.metadata import metadata
 
-            plugin_name = plugin.get("netbox_name")
-            app = apps.get_app_config(plugin_name)
-            self.fields["plugin_version"].initial = app.version
+            plugin_name = plugin.get("app_label")
+            self.fields["version"].initial = metadata(plugin_name).get("Version")
             self.fields["configuration"].initial = settings.PLUGINS_CONFIG[plugin_name]
 
     def clean(self):
         plugins = get_plugins_list()
-        plugin = plugins.get(self.cleaned_data.get("plugin_name"))
+        plugin = plugins.get(self.cleaned_data.get("name"))
 
         # If the plugin is private, ensure that license is provided
         nc = NetBoxConfiguration.objects.first()
         if plugin.get("private"):
             if not nc.license:
                 raise ValidationError(
-                    {"plugin_name": "This plugin requires a NetBox Enterprise license."}
+                    {"name": "This plugin requires a NetBox Enterprise license."}
                 )
 
             # Check if the plugin is accessible using the license
@@ -339,7 +339,7 @@ class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
             if not response.ok:
                 raise ValidationError(
                     {
-                        "plugin_name": "This plugin is not accessible using the provided license."
+                        "name": "This plugin is not accessible using the provided license."
                     }
                 )
 
@@ -354,3 +354,24 @@ class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
                     "configuration": f"Missing required settings: {', '.join(required_settings)}"
                 }
             )
+
+
+class NetBoxUpgradeForm(BootstrapMixin, forms.Form):
+    version = forms.ChoiceField(
+        label="Version",
+        help_text="Version to upgrade to.",
+    )
+
+    class Meta:
+        fields = ["version"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        instance = NetBoxConfiguration.objects.first()
+        env = instance.get_env()
+
+        versions = env.get_patch_upgrades()
+        self.fields["version"].choices = [
+            (str(version), str(version)) for version in versions
+        ]

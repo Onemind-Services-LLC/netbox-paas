@@ -1,15 +1,18 @@
 import logging
+import time
 from functools import lru_cache
 
+import requests
 import yaml
 from django.conf import settings
 from jelastic import Jelastic
 from jelastic.api.exceptions import JelasticApiError
+from semver.version import Version
 
 from core.choices import JobStatusChoices
 from core.models import Job
 from netbox.config import get_config
-from .constants import JELASTIC_API, NODE_GROUP_CP
+from .constants import JELASTIC_API, NODE_GROUP_CP, NODE_GROUP_SQLDB
 
 logger = logging.getLogger("netbox_cloud_pilot")
 
@@ -239,6 +242,40 @@ class IaaS(IaaSJob):
             env_name=self.env_name, node_group=node_group, vars=env_vars
         )
 
+    def run_script(self, name, code, description=None, params=None):
+        """
+        Run a script.
+        """
+        app_id = self.get_env().get("appid")
+
+        try:
+            result = self.client.development.Scripting.GetScripts(
+                app_id=app_id,
+                type="js",
+            )
+            scripts = result.get("scripts", [])
+            for script in scripts:
+                if script.get("name") == name:
+                    logger.debug(f"Deleting existing script {name}")
+                    self.client.development.Scripting.DeleteScript(
+                        app_id=app_id, name=name
+                    )
+                    continue
+        except JelasticApiError as e:
+            logger.error(e)
+
+        self.client.development.Scripting.CreateScript(
+            app_id=app_id, name=name, type="js", code=code
+        )
+
+        return self.client.utils.Scheduler.CreateEnvTask(
+            env_name=self.env_name,
+            script=name,
+            trigger={"once_delay": 10000},
+            description=description,
+            params=params,
+        )
+
     def restart_nodes(
         self, node_groups: list[str], lazy: bool = False, delay: int = 10000
     ):
@@ -250,7 +287,6 @@ class IaaS(IaaSJob):
         logger.debug(f"Restarting nodes for node groups {', '.join(node_groups)}")
         if lazy:
             for node_group in node_groups:
-                app_id = self.get_env().get("appid")
                 script_name = f"restart-{node_group}-ncp"
                 script_code = """
                 var c = jelastic.environment.control, e = envName, s = session, r, resp;
@@ -261,31 +297,9 @@ class IaaS(IaaSJob):
                 return { result: 0, message: 'Restarted ' + nodeGroup}
                 """
 
-                try:
-                    result = self.client.development.Scripting.GetScripts(
-                        app_id=app_id,
-                        type="js",
-                    )
-                    scripts = result.get("scripts", [])
-                    for script in scripts:
-                        if script.get("name") == script_name:
-                            logger.debug(f"Deleting existing script {script_name}")
-                            self.client.development.Scripting.DeleteScript(
-                                app_id=app_id, name=script_name
-                            )
-                            continue
-                except JelasticApiError as e:
-                    logger.error(e)
-
-                self.client.development.Scripting.CreateScript(
-                    app_id=app_id, name=script_name, type="js", code=script_code
-                )
-
-                # Create a delay scheduled task
-                task_result = self.client.utils.Scheduler.CreateEnvTask(
-                    env_name=self.env_name,
-                    script=script_name,
-                    trigger={"once_delay": delay},
+                task_result = self.run_script(
+                    name=script_name,
+                    code=script_code,
                     description=f"Restart {node_group} nodes",
                     params={"envName": self.env_name, "nodeGroup": node_group},
                 )
@@ -394,67 +408,64 @@ class IaaSNetBox(IaaS):
 
         return results
 
-    def _reconfigure_plugin(
-        self, app_unique_name, version, netbox_name, plugin_settings=None
+    def load_plugins(self):
+        """
+        Loads the plugins from the plugins.yaml file.
+        """
+        master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
+        plugins_yaml = self.execute_cmd(
+            master_node_id, "cat /etc/netbox/config/plugins.yaml"
+        )[0].get("out", "")
+        return yaml.safe_load(plugins_yaml) or {}
+
+    def dump_plugins(self, plugins):
+        """
+        Dumps the plugins to the plugins.yaml file.
+        """
+        master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
+        plugins_yaml = yaml.dump(plugins)
+
+        self.client.environment.File.Write(
+            env_name=self.env_name,
+            path="/etc/netbox/config/plugins.yaml",
+            body=plugins_yaml,
+            node_id=master_node_id,
+            is_append_mode=False,
+        )
+
+    def install_plugin(
+        self, plugin: dict, version, plugin_settings=None, github_token=None
     ):
-        logger.info(f"Reconfiguring addon {app_unique_name} to version {version}")
+        master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
+        activate_env = "source /opt/netbox/venv/bin/activate"
 
-        self.execute_action(
-            app_unique_name=app_unique_name,
-            params={"version": version},
-        )
-
-        self._update_plugin_settings(
-            netbox_name=netbox_name, plugin_settings=plugin_settings
-        )
-        return self.restart_nodes(
-            node_groups=[
-                node_group["name"] for node_group in self.get_nb_node_groups()
-            ],
-            lazy=True,
-        )
-
-    def _update_plugin_settings(self, netbox_name, plugin_settings: dict):
-        logger.info(f"Updating settings for NetBox plugin {netbox_name}")
-
-        # Find NetBox master Node ID
-        node_id = self.get_master_node(NODE_GROUP_CP).get("id")
-
-        result = self.execute_cmd(
-            node_id=node_id,
-            command="cat /etc/netbox/config/plugins.yaml",
-        )
-
-        content = yaml.safe_load(result[0].get("out", ""))
-        content[netbox_name] = plugin_settings
-
-        self.execute_cmd(
-            node_id=node_id,
-            command=f"echo '{yaml.dump(content)}' > /etc/netbox/config/plugins.yaml",
-        )
-
-    def install_plugin(self, app_id, version, netbox_name, plugin_settings=None):
-        # Check if the addon is already installed
-        if addon := self.get_installed_addon(app_id=app_id, node_group=NODE_GROUP_CP):
-            return self._reconfigure_plugin(
-                app_unique_name=addon.get("uniqueName"),
-                version=version,
-                netbox_name=netbox_name,
-                plugin_settings=plugin_settings,
+        # Install the plugin version
+        if plugin.get("private"):
+            github_url = plugin.get("github_url")
+            github_url = github_url.replace(
+                "https://github.com", f"git+https://{github_token}@github.com"
             )
 
-        logger.info(f"Installing addon {app_id} version {version}")
-        self.client.marketplace.App.InstallAddon(
-            env_name=self.env_name,
-            app_id=app_id,
-            settings={"version": version},
-            node_group=NODE_GROUP_CP,
-            skip_email=True,
-        )
+            self.execute_cmd(
+                master_node_id, f"{activate_env} && pip install {github_url}@{version}"
+            )
+        else:
+            self.execute_cmd(
+                master_node_id,
+                f'{activate_env} && pip install {plugin.get("name")}=={version}',
+            )
 
-        self._update_plugin_settings(
-            netbox_name=netbox_name, plugin_settings=plugin_settings
-        )
+        plugins = self.load_plugins()
+        plugins[plugin.get("app_label")] = plugin_settings or {}
+        self.dump_plugins(plugins)
+
+        # TODO: Uncomment this after a fix is suggested by Virtuozzo, slack thread: https://omsmsp.slack.com/archives/C05QT7WD71U/p1704140085788849
+        # Run collectstatic command
+        # self.execute_cmd(
+        #     node_id=master_node_id,
+        #     command=f"{activate_env} && /opt/netbox/netbox/manage.py collectstatic --no-input",
+        # )
+
         return self.restart_nodes(
             node_groups=[
                 node_group["name"] for node_group in self.get_nb_node_groups()
@@ -462,32 +473,20 @@ class IaaSNetBox(IaaS):
             lazy=True,
         )
 
-    def uninstall_plugin(self, app_id, search=None):
+    def uninstall_plugin(self, plugin: dict):
         """
         Uninstall an addon for NetBox.
         """
-        # Check if the addon is already installed
-        if addon := self.get_installed_addon(
-            app_id=app_id, node_group=NODE_GROUP_CP, search=search
-        ):
-            logger.info(f"Uninstalling addon {app_id}")
+        plugins = self.load_plugins()
+        plugins.pop(plugin.get("app_label"))
+        self.dump_plugins(plugins)
 
-            self.client.marketplace.Installation.Uninstall(
-                app_unique_name=addon.get("uniqueName"),
-                target_app_id=self.get_env().get("appid"),
-                app_template_id=app_id,
-            )
-
-            return self.restart_nodes(
-                node_groups=[
-                    node_group["name"] for node_group in self.get_nb_node_groups()
-                ],
-                lazy=True,
-            )
-
-        msg = f"Plugin {app_id} is not installed."
-        logger.info(msg)
-        return {"result": 0, "message": msg}
+        return self.restart_nodes(
+            node_groups=[
+                node_group["name"] for node_group in self.get_nb_node_groups()
+            ],
+            lazy=True,
+        )
 
     def get_env_var(self, variable, default=None):
         """
@@ -498,3 +497,178 @@ class IaaSNetBox(IaaS):
             getattr(get_config(), variable, container_vars.get(variable, None))
             or default
         )
+
+    def _get_docker_tags(self):
+        """
+        Get the Docker tags for NetBox.
+        """
+        master_node = self.get_master_node(NODE_GROUP_CP)
+        docker = master_node.get("customitem", {})
+
+        response = requests.get(
+            f'https://hub.docker.com/v2/repositories/{docker["dockerName"]}/tags?page_size=1000'
+        )
+        response.raise_for_status()
+        response = response.json()
+
+        names = [d["name"] for d in response["results"] if d["name"].startswith("v")]
+        tags = []
+        for name in names:
+            try:
+                version = Version.parse(name.lstrip("v"))
+                if not version.prerelease:
+                    tags.append(version)
+            except ValueError:
+                pass
+
+        return tags
+
+    def _get_upgrades(self):
+        """
+        Get the available upgrades for NetBox.
+        """
+        docker_tags = self._get_docker_tags()
+        current_version = Version.parse(settings.VERSION)
+
+        return [tag for tag in docker_tags if tag > current_version]
+
+    def get_patch_upgrades(self):
+        """
+        Get the available patch upgrades for NetBox.
+        """
+        all_upgrades = self._get_upgrades()
+        current_version = Version.parse(settings.VERSION)
+
+        # Filter out only the patch upgrades
+        patch_upgrades = []
+        for upgrade in all_upgrades:
+            if (
+                upgrade.major == current_version.major
+                and upgrade.minor == current_version.minor
+            ):
+                patch_upgrades.append(upgrade)
+
+        return patch_upgrades
+
+    def get_minor_upgrades(self):
+        """
+        Get the available minor upgrades for NetBox.
+        """
+        all_upgrades = self._get_upgrades()
+        current_version = Version.parse(settings.VERSION)
+
+        # Filter out only the minor upgrades
+        minor_upgrades = []
+        for upgrade in all_upgrades:
+            if (
+                upgrade.major == current_version.major
+                and upgrade.minor > current_version.minor
+            ):
+                minor_upgrades.append(upgrade)
+
+        return minor_upgrades
+
+    def get_major_upgrades(self):
+        """
+        Get the available major upgrades for NetBox.
+        """
+        all_upgrades = self._get_upgrades()
+        current_version = Version.parse(settings.VERSION)
+
+        # Filter out only the major upgrades
+        major_upgrades = []
+        for upgrade in all_upgrades:
+            if upgrade.major > current_version.major:
+                major_upgrades.append(upgrade)
+
+        return major_upgrades
+
+    def is_upgrade_available(self):
+        """
+        Check if an upgrade is available for NetBox.
+        """
+        return bool(self._get_upgrades())
+
+    def is_db_backup_running(self, app_unique_name):
+        # Get current running actions
+        current_actions = self.client.environment.Tracking.GetCurrentActions().get(
+            "array", []
+        )
+        for action in current_actions:
+            action_parameters = action.get("parameters", {})
+
+            if (
+                action_parameters.get("appUniqueName") == app_unique_name
+                and action_parameters.get("action") == "backup"
+            ):
+                return True
+
+        return False
+
+    def db_backup(self, app_unique_name):
+        """
+        Backup NetBox database.
+        """
+        while self.is_db_backup_running(app_unique_name=app_unique_name):
+            logger.debug("Waiting for database backup to finish...")
+            time.sleep(30)
+
+        return self.execute_action(app_unique_name=app_unique_name, action="backup")
+
+    def upgrade(self, version):
+        """
+        Upgrade NetBox.
+        """
+        version = f"v{version}"
+
+        if addon := self.get_installed_addon(
+            app_id="db-backup", node_group=NODE_GROUP_SQLDB
+        ):
+            self.db_backup(app_unique_name=addon.get("uniqueName"))
+
+        # TODO: Run plugin compatibility checks
+
+        # Fetch all node groups
+        for node_group in self.get_nb_node_groups():
+            node_group_name = node_group["name"]
+            script_name = f"upgrade-netbox-{node_group_name}-ncp"
+            script_code = """
+            var c = jelastic.environment.control, e = envName, s = session, r, resp;
+            resp = c.GetEnvInfo(e, s);
+            if (resp.result != 0) return resp;
+
+            // Wait for the environment to be running before redeploying
+            var isRunning = false, attempts = 0, maxAttempts = 30;
+            while (!isRunning && attempts < maxAttempts) {
+              envInfo = c.GetEnvInfo(e, s);
+              if (envInfo.result != 0) return envInfo;
+
+              if (envInfo.env.status == 1) {
+                isRunning = true;
+              } else {
+                attempts++;
+                java.lang.Thread.sleep(30000);
+              }
+            }
+
+            if (!isRunning) {
+              return { result: 1, message: 'Environment is not running' };
+            }
+
+            r = c.RedeployContainersByGroup({ envName: e, session: s, nodeGroup: nodeGroup, tag: tag, useExistingVolumes: true });
+            if (r.result != 0) return r;
+            return { result: 0, message: 'Upgraded ' + nodeGroup}
+            """
+
+            self.run_script(
+                name=script_name,
+                code=script_code,
+                description=f"Upgrade {node_group_name} nodes",
+                params={
+                    "tag": version,
+                    "envName": self.env_name,
+                    "nodeGroup": node_group_name,
+                },
+            )
+
+        self.clear_cache()

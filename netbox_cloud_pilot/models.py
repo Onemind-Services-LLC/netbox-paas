@@ -82,11 +82,12 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
         if "." in self.env_name:
             raise ValidationError("Environment name must not contain dots.")
 
-        try:
-            # Ensure the provided env_name exists
-            self.iaas(self.env_name)
-        except JelasticApiError as e:
-            raise ValidationError(e)
+        if self.pk:
+            try:
+                # Ensure the provided env_name exists
+                self.iaas(self.env_name)
+            except JelasticApiError as e:
+                raise ValidationError(e)
 
         if self.env_name_storage:
             try:
@@ -109,6 +110,14 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
 
     def get_env(self):
         return self.iaas(self.env_name)
+
+    def get_docker_tag(self):
+        return (
+            self.get_env()
+            .get_master_node(NODE_GROUP_CP)
+            .get("customitem", {})
+            .get("dockerTag", "")
+        )
 
     def get_env_storage(self):
         return self.iaas(self.env_name_storage)
@@ -282,6 +291,35 @@ class NetBoxDBBackup(ChangeLoggedModel):
     def __str__(self):
         return self.crontab
 
+    def save(self, *args, **kwargs):
+        self.netbox_env.enqueue(
+            self.netbox_env.get_env().install_addon,
+            None,
+            app_id="db-backup",
+            node_group=NODE_GROUP_SQLDB,
+            addon_settings={
+                "scheduleType": 3,
+                "cronTime": self.cron,
+                "storageName": self.netbox_env.env_name_storage,
+                "backupCount": self.keep_backups,
+                "dbuser": "webadmin",
+                "dbpass": getattr(self, "_db_password", ""),
+            },
+        )
+
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        self.netbox_env.enqueue(
+            self.netbox_env.get_env().uninstall_addon,
+            None,
+            app_id="db-backup",
+            node_group=NODE_GROUP_SQLDB,
+            search={"nodeType": "postgresql", "app_id": "db-backup"},
+        )
+
+        super().delete(*args, **kwargs)
+
     def clean(self):
         super().clean()
 
@@ -387,10 +425,9 @@ class NetBoxDBBackup(ChangeLoggedModel):
         )
 
         return self.netbox_env.enqueue(
-            self.netbox_env.get_env().execute_action,
+            self.netbox_env.get_env().db_backup,
             request,
             app_unique_name=addon.get("uniqueName"),
-            action="backup",
         )
 
     def restore(self, request, backup_name):

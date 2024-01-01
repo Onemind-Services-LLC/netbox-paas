@@ -10,7 +10,7 @@ __all__ = ("get_plugins_list", "filter_releases", "job_msg")
 
 
 def get_plugins_list():
-    plugins = []
+    plugins = {}
 
     # Download plugins.yaml from GitHub
     response = requests.get(f"{NETBOX_JPS_REPO}/plugins.yaml")
