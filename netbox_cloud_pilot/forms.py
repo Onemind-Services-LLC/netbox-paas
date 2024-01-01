@@ -2,10 +2,10 @@ import requests
 from django import forms
 from django.conf import settings
 from django.forms import ValidationError
+
 from netbox.forms import NetBoxModelForm
 from utilities.forms import BootstrapMixin
 from utilities.forms.fields import CommentField
-
 from .constants import NETBOX_SETTINGS, NODE_GROUP_SQLDB
 from .models import *
 from .utils import *
@@ -99,7 +99,7 @@ class NetBoxConfigurationForm(NetBoxModelForm):
                 )
                 for env_info in env_infos
                 if env_info.get("env", {}).get("properties", {}).get("projectScope", "")
-                   == "backup"
+                == "backup"
             ]
 
 
@@ -355,3 +355,24 @@ class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
                     "configuration": f"Missing required settings: {', '.join(required_settings)}"
                 }
             )
+
+
+class NetBoxUpgradeForm(BootstrapMixin, forms.Form):
+    version = forms.ChoiceField(
+        label="Version",
+        help_text="Version to upgrade to.",
+    )
+
+    class Meta:
+        fields = ["version"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        instance = NetBoxConfiguration.objects.first()
+        env = instance.get_env()
+
+        versions = env.get_patch_upgrades()
+        self.fields["version"].choices = [
+            (str(version), str(version)) for version in versions
+        ]

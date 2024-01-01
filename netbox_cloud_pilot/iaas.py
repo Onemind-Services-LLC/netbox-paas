@@ -1,10 +1,12 @@
 import logging
 from functools import lru_cache
 
+import requests
 import yaml
 from django.conf import settings
 from jelastic import Jelastic
 from jelastic.api.exceptions import JelasticApiError
+from semver.version import Version
 
 from core.choices import JobStatusChoices
 from core.models import Job
@@ -239,6 +241,40 @@ class IaaS(IaaSJob):
             env_name=self.env_name, node_group=node_group, vars=env_vars
         )
 
+    def run_script(self, name, code, description=None, params=None):
+        """
+        Run a script.
+        """
+        app_id = self.get_env().get("appid")
+
+        try:
+            result = self.client.development.Scripting.GetScripts(
+                app_id=app_id,
+                type="js",
+            )
+            scripts = result.get("scripts", [])
+            for script in scripts:
+                if script.get("name") == name:
+                    logger.debug(f"Deleting existing script {name}")
+                    self.client.development.Scripting.DeleteScript(
+                        app_id=app_id, name=name
+                    )
+                    continue
+        except JelasticApiError as e:
+            logger.error(e)
+
+        self.client.development.Scripting.CreateScript(
+            app_id=app_id, name=name, type="js", code=code
+        )
+
+        return self.client.utils.Scheduler.CreateEnvTask(
+            env_name=self.env_name,
+            script=name,
+            trigger={"once_delay": 10000},
+            description=description,
+            params=params,
+        )
+
     def restart_nodes(
         self, node_groups: list[str], lazy: bool = False, delay: int = 10000
     ):
@@ -250,7 +286,6 @@ class IaaS(IaaSJob):
         logger.debug(f"Restarting nodes for node groups {', '.join(node_groups)}")
         if lazy:
             for node_group in node_groups:
-                app_id = self.get_env().get("appid")
                 script_name = f"restart-{node_group}-ncp"
                 script_code = """
                 var c = jelastic.environment.control, e = envName, s = session, r, resp;
@@ -261,31 +296,9 @@ class IaaS(IaaSJob):
                 return { result: 0, message: 'Restarted ' + nodeGroup}
                 """
 
-                try:
-                    result = self.client.development.Scripting.GetScripts(
-                        app_id=app_id,
-                        type="js",
-                    )
-                    scripts = result.get("scripts", [])
-                    for script in scripts:
-                        if script.get("name") == script_name:
-                            logger.debug(f"Deleting existing script {script_name}")
-                            self.client.development.Scripting.DeleteScript(
-                                app_id=app_id, name=script_name
-                            )
-                            continue
-                except JelasticApiError as e:
-                    logger.error(e)
-
-                self.client.development.Scripting.CreateScript(
-                    app_id=app_id, name=script_name, type="js", code=script_code
-                )
-
-                # Create a delay scheduled task
-                task_result = self.client.utils.Scheduler.CreateEnvTask(
-                    env_name=self.env_name,
-                    script=script_name,
-                    trigger={"once_delay": delay},
+                task_result = self.run_script(
+                    name=script_name,
+                    code=script_code,
                     description=f"Restart {node_group} nodes",
                     params={"envName": self.env_name, "nodeGroup": node_group},
                 )
@@ -484,3 +497,127 @@ class IaaSNetBox(IaaS):
             getattr(get_config(), variable, container_vars.get(variable, None))
             or default
         )
+
+    def _get_docker_tags(self):
+        """
+        Get the Docker tags for NetBox.
+        """
+        master_node = self.get_master_node(NODE_GROUP_CP)
+        docker = master_node.get("customitem", {})
+
+        response = requests.get(
+            f'https://hub.docker.com/v2/repositories/{docker["dockerName"]}/tags?page_size=1000'
+        )
+        response.raise_for_status()
+        response = response.json()
+
+        names = [d["name"] for d in response["results"] if d["name"].startswith("v")]
+        tags = []
+        for name in names:
+            try:
+                version = Version.parse(name.lstrip("v"))
+                if not version.prerelease:
+                    tags.append(version)
+            except ValueError:
+                pass
+
+        return tags
+
+    def _get_upgrades(self):
+        """
+        Get the available upgrades for NetBox.
+        """
+        docker_tags = self._get_docker_tags()
+        current_version = Version.parse(settings.VERSION)
+
+        return [tag for tag in docker_tags if tag > current_version]
+
+    def get_patch_upgrades(self):
+        """
+        Get the available patch upgrades for NetBox.
+        """
+        all_upgrades = self._get_upgrades()
+        current_version = Version.parse(settings.VERSION)
+
+        # Filter out only the patch upgrades
+        patch_upgrades = []
+        for upgrade in all_upgrades:
+            if (
+                upgrade.major == current_version.major
+                and upgrade.minor == current_version.minor
+            ):
+                patch_upgrades.append(upgrade)
+
+        return patch_upgrades
+
+    def get_minor_upgrades(self):
+        """
+        Get the available minor upgrades for NetBox.
+        """
+        all_upgrades = self._get_upgrades()
+        current_version = Version.parse(settings.VERSION)
+
+        # Filter out only the minor upgrades
+        minor_upgrades = []
+        for upgrade in all_upgrades:
+            if (
+                upgrade.major == current_version.major
+                and upgrade.minor > current_version.minor
+            ):
+                minor_upgrades.append(upgrade)
+
+        return minor_upgrades
+
+    def get_major_upgrades(self):
+        """
+        Get the available major upgrades for NetBox.
+        """
+        all_upgrades = self._get_upgrades()
+        current_version = Version.parse(settings.VERSION)
+
+        # Filter out only the major upgrades
+        major_upgrades = []
+        for upgrade in all_upgrades:
+            if upgrade.major > current_version.major:
+                major_upgrades.append(upgrade)
+
+        return major_upgrades
+
+    def is_upgrade_available(self):
+        """
+        Check if an upgrade is available for NetBox.
+        """
+        return bool(self._get_upgrades())
+
+    def upgrade(self, version):
+        """
+        Upgrade NetBox.
+        """
+        version = f"v{version}"
+
+        # TODO: Run backup if `db-backup` addon is installed
+        # TODO: Run plugin compatibility checks
+
+        # Fetch all node groups
+        for node_group in self.get_nb_node_groups():
+            node_group_name = node_group["name"]
+            script_name = f"upgrade-netbox-{node_group_name}-ncp"
+            script_code = """
+            var c = jelastic.environment.control, e = envName, s = session, r, resp;
+            resp = c.GetEnvInfo(e, s);
+            if (resp.result != 0) return resp;
+            r = c.RedeployContainersByGroup({ envName: e, session: s, nodeGroup: nodeGroup, tag: tag, useExistingVolumes: true });
+            if (r.result != 0) return r;
+            return { result: 0, message: 'Upgraded ' + nodeGroup}
+            """
+
+            self.run_script(
+                name=script_name,
+                code=script_code,
+                description=f"Upgrade {node_group_name} nodes",
+                params={
+                    "tag": version,
+                    "envName": self.env_name,
+                    "nodeGroup": node_group_name,
+                },
+            )

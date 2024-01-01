@@ -5,6 +5,12 @@
 {% block controls %}
     <div class="controls">
         <div class="control-group">
+            {% if object.get_env.is_upgrade_available %}
+                <a href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_upgrades' pk=object.pk %}" class="btn btn-sm btn-outline-green">
+                    <span class="mdi mdi" aria-hidden="true"></span> Upgrade Available
+                </a>
+            {% endif %}
+
             {% if perms.netbox_cloud_pilot.change_netboxconfiguration %}
                 <a href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_settings' pk=object.pk %}"
                    class="btn btn-sm btn-cyan">
@@ -36,7 +42,8 @@
                         </tr>
                         <tr>
                             <th scope="row">Infrastructure Access</th>
-                            <td><a href="{{ object.get_env.admin_url }}" target="_blank">{{ object.get_env.admin_url }}</a></td>
+                            <td><a href="{{ object.get_env.admin_url }}"
+                                   target="_blank">{{ object.get_env.admin_url }}</a></td>
                         </tr>
                         <tr>
                             <th scope="row">Storage Environment</th>
@@ -60,6 +67,10 @@
                                     <span class="text-danger">No</span>
                                 {% endif %}
                             </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Version</th>
+                            <td>{{ object.get_docker_tag }}</td>
                         </tr>
                     </table>
                 </div>

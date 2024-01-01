@@ -296,6 +296,49 @@ class NetBoxPluginListView(View):
         return redirect("plugins:netbox_cloud_pilot:netboxconfiguration_add")
 
 
+@register_model_view(models.NetBoxConfiguration, "upgrades")
+class NetBoxPluginUpgradesView(PermissionRequiredMixin, GetReturnURLMixin, View):
+    queryset = models.NetBoxConfiguration.objects.all()
+    form = forms.NetBoxUpgradeForm
+
+    def get_permission_required(self):
+        return ["netbox_cloud_pilot.change_netboxconfiguration"]
+
+    def get(self, request, pk, *args, **kwargs):
+        obj = get_object_or_404(models.NetBoxConfiguration, pk=pk)
+
+        return render(
+            request,
+            "generic/object_edit.html",
+            {
+                "object": obj,
+                "form": self.form(),
+            },
+        )
+
+    def post(self, request, pk, *args, **kwargs):
+        obj = get_object_or_404(models.NetBoxConfiguration, pk=pk)
+        form = self.form(request.POST)
+
+        if form.is_valid():
+            job = obj.enqueue(
+                obj.get_env().upgrade,
+                request,
+                version=form.cleaned_data["version"],
+            )
+            messages.success(request, utils.job_msg(job))
+            return redirect("core:job", pk=job.pk)
+
+        return render(
+            request,
+            "generic/object_edit.html",
+            {
+                "object": obj,
+                "form": self.form(instance=obj),
+            },
+        )
+
+
 @register_model_view(
     models.NetBoxConfiguration, "plugin_install", path="plugin-install"
 )

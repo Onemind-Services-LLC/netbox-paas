@@ -111,6 +111,14 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
     def get_env(self):
         return self.iaas(self.env_name)
 
+    def get_docker_tag(self):
+        return (
+            self.get_env()
+            .get_master_node(NODE_GROUP_CP)
+            .get("customitem", {})
+            .get("dockerTag", "")
+        )
+
     def get_env_storage(self):
         return self.iaas(self.env_name_storage)
 
