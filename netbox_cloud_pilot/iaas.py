@@ -459,12 +459,11 @@ class IaaSNetBox(IaaS):
         plugins[plugin.get("app_label")] = plugin_settings or {}
         self.dump_plugins(plugins)
 
-        # TODO: Uncomment this after a fix is suggested by Virtuozzo, slack thread: https://omsmsp.slack.com/archives/C05QT7WD71U/p1704140085788849
         # Run collectstatic command
-        # self.execute_cmd(
-        #     node_id=master_node_id,
-        #     command=f"{activate_env} && /opt/netbox/netbox/manage.py collectstatic --no-input",
-        # )
+        self.execute_cmd(
+            node_id=master_node_id,
+            command=f"{activate_env} && /opt/netbox/netbox/manage.py collectstatic --no-input --clear 1>/dev/null",
+        )
 
         return self.restart_nodes(
             node_groups=[
