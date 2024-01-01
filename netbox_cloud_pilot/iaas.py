@@ -1,4 +1,5 @@
 import logging
+import time
 from functools import lru_cache
 
 import requests
@@ -11,7 +12,7 @@ from semver.version import Version
 from core.choices import JobStatusChoices
 from core.models import Job
 from netbox.config import get_config
-from .constants import JELASTIC_API, NODE_GROUP_CP
+from .constants import JELASTIC_API, NODE_GROUP_CP, NODE_GROUP_SQLDB
 
 logger = logging.getLogger("netbox_cloud_pilot")
 
@@ -589,13 +590,43 @@ class IaaSNetBox(IaaS):
         """
         return bool(self._get_upgrades())
 
+    def is_db_backup_running(self, app_unique_name):
+        # Get current running actions
+        current_actions = self.client.environment.Tracking.GetCurrentActions().get(
+            "array", []
+        )
+        for action in current_actions:
+            action_parameters = action.get("parameters", {})
+
+            if (
+                action_parameters.get("appUniqueName") == app_unique_name
+                and action_parameters.get("action") == "backup"
+            ):
+                return True
+
+        return False
+
+    def db_backup(self, app_unique_name):
+        """
+        Backup NetBox database.
+        """
+        while self.is_db_backup_running(app_unique_name=app_unique_name):
+            logger.debug("Waiting for database backup to finish...")
+            time.sleep(30)
+
+        return self.execute_action(app_unique_name=app_unique_name, action="backup")
+
     def upgrade(self, version):
         """
         Upgrade NetBox.
         """
         version = f"v{version}"
 
-        # TODO: Run backup if `db-backup` addon is installed
+        if addon := self.get_installed_addon(
+            app_id="db-backup", node_group=NODE_GROUP_SQLDB
+        ):
+            self.db_backup(app_unique_name=addon.get("uniqueName"))
+
         # TODO: Run plugin compatibility checks
 
         # Fetch all node groups
@@ -640,3 +671,5 @@ class IaaSNetBox(IaaS):
                     "nodeGroup": node_group_name,
                 },
             )
+
+        self.clear_cache()
