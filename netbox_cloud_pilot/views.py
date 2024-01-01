@@ -1,6 +1,8 @@
 import random
 import string
+from importlib.metadata import metadata
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.shortcuts import redirect, get_object_or_404, render
@@ -269,22 +271,20 @@ class NetBoxDBBackupRestoreView(PermissionRequiredMixin, View):
 class NetBoxPluginListView(View):
     def get(self, request):
         if nc := models.NetBoxConfiguration.objects.first():
-            addons = nc.get_env().get_addons(
-                node_group=constants.NODE_GROUP_CP,
-                search={"categories": ["apps/netbox-plugins"]},
-            )
+            installed_plugins = settings.PLUGINS
+            installed_plugins = [
+                metadata(plugin).get("Name") for plugin in installed_plugins
+            ]
 
             plugins = utils.get_plugins_list()
-
-            # Find which addon is installed and update the plugins list
-            for addon in addons:
-                for plugin_name in plugins:
-                    if addon["app_id"] == plugin_name:
-                        plugins[plugin_name].update(
-                            {
-                                "installed": addon["isInstalled"],
-                            }
-                        )
+            for plugin_name, _ in plugins.items():
+                if plugin_name in installed_plugins:
+                    plugins[plugin_name].update(
+                        {
+                            "installed": True,
+                            "current_version": metadata(plugin_name).get("Version"),
+                        }
+                    )
 
             return render(
                 request,
@@ -377,15 +377,15 @@ class NetBoxPluginInstallView(generic.ObjectEditView):
         form = self.initialize_form(request)
 
         if form.is_valid():
-            plugin = utils.get_plugins_list().get(form.cleaned_data["plugin_name"])
+            plugin = utils.get_plugins_list().get(form.cleaned_data["name"])
 
             job = obj.enqueue(
                 obj.get_env().install_plugin,
                 request,
-                app_id=form.cleaned_data["plugin_name"],
-                version=form.cleaned_data["plugin_version"],
-                netbox_name=plugin["netbox_name"],
+                plugin=plugin,
+                version=form.cleaned_data["version"],
                 plugin_settings=form.cleaned_data["configuration"],
+                github_token=obj.license,
             )
             messages.success(request, utils.job_msg(job))
             return redirect("core:job", pk=job.pk)
@@ -411,7 +411,7 @@ class NetBoxPluginUninstallView(generic.ObjectDeleteView):
 
     def get(self, request, *args, **kwargs):
         obj = self.get_object(**kwargs)
-        plugin = utils.get_plugins_list().get(request.GET.get("plugin_name"))
+        plugin = utils.get_plugins_list().get(request.GET.get("name"))
 
         if plugin is None:
             messages.error(request, "Plugin not found.")
@@ -435,12 +435,10 @@ class NetBoxPluginUninstallView(generic.ObjectDeleteView):
         obj = self.get_object(**kwargs)
         form = ConfirmationForm(request.POST)
 
-        plugin = utils.get_plugins_list().get(request.POST.get("plugin_name"))
+        plugin = utils.get_plugins_list().get(request.POST.get("name"))
 
         if form.is_valid():
-            job = obj.enqueue(
-                obj.get_env().uninstall_plugin, request, app_id=plugin["plugin_id"]
-            )
+            job = obj.enqueue(obj.get_env().uninstall_plugin, request, plugin=plugin)
 
             messages.success(request, utils.job_msg(job))
             return redirect("core:job", pk=job.pk)

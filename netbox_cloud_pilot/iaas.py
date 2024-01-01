@@ -408,52 +408,63 @@ class IaaSNetBox(IaaS):
 
         return results
 
-    def _update_plugin_settings(self, netbox_name, plugin_settings: dict):
-        logger.info(f"Updating settings for NetBox plugin {netbox_name}")
+    def load_plugins(self):
+        """
+        Loads the plugins from the plugins.yaml file.
+        """
+        master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
+        plugins_yaml = self.execute_cmd(
+            master_node_id, "cat /etc/netbox/config/plugins.yaml"
+        )[0].get("out", "")
+        return yaml.safe_load(plugins_yaml) or {}
 
-        # Find NetBox master Node ID
-        node_id = self.get_master_node(NODE_GROUP_CP).get("id")
+    def dump_plugins(self, plugins):
+        """
+        Dumps the plugins to the plugins.yaml file.
+        """
+        master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
+        plugins_yaml = yaml.dump(plugins)
 
-        result = self.execute_cmd(
-            node_id=node_id,
-            command="cat /etc/netbox/config/plugins.yaml",
+        self.client.environment.File.Write(
+            env_name=self.env_name,
+            path="/etc/netbox/config/plugins.yaml",
+            body=plugins_yaml,
+            node_id=master_node_id,
+            is_append_mode=False,
         )
 
-        content = yaml.safe_load(result[0].get("out", ""))
-        content[netbox_name] = plugin_settings
+    def install_plugin(
+        self, plugin: dict, version, plugin_settings=None, github_token=None
+    ):
+        master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
+        activate_env = "source /opt/netbox/venv/bin/activate"
 
-        self.execute_cmd(
-            node_id=node_id,
-            command=f"echo '{yaml.dump(content)}' > /etc/netbox/config/plugins.yaml",
-        )
+        # Install the plugin version
+        if plugin.get("private"):
+            github_url = plugin.get("github_url")
+            github_url = github_url.replace(
+                "https://github.com", f"git+https://{github_token}@github.com"
+            )
 
-    def install_plugin(self, app_id, version, netbox_name, plugin_settings=None):
-        # Check if the addon is already installed
-        if addon := self.get_installed_addon(app_id=app_id, node_group=NODE_GROUP_CP):
-            logger.info(f"Installing plugin {app_id} version {version}")
-            self.execute_action(
-                app_unique_name=addon.get("uniqueName"),
-                params={"version": version},
+            self.execute_cmd(
+                master_node_id, f"{activate_env} && pip install {github_url}@{version}"
             )
         else:
-            logger.info(f"Installing plugin {app_id} version {version}")
-            self.client.marketplace.App.InstallAddon(
-                env_name=self.env_name,
-                app_id=app_id,
-                settings={"version": version},
-                node_group=NODE_GROUP_CP,
-                skip_email=True,
+            self.execute_cmd(
+                master_node_id,
+                f'{activate_env} && pip install {plugin.get("name")}=={version}',
             )
 
-        self._update_plugin_settings(
-            netbox_name=netbox_name, plugin_settings=plugin_settings
-        )
+        plugins = self.load_plugins()
+        plugins[plugin.get("app_label")] = plugin_settings or {}
+        self.dump_plugins(plugins)
 
+        # TODO: Uncomment this after a fix is suggested by Virtuozzo, slack thread: https://omsmsp.slack.com/archives/C05QT7WD71U/p1704140085788849
         # Run collectstatic command
-        self.execute_cmd(
-            node_id=self.get_master_node(NODE_GROUP_CP).get("id"),
-            command="/opt/netbox/venv/bin/python3 /opt/netbox/netbox/manage.py collectstatic --no-input",
-        )
+        # self.execute_cmd(
+        #     node_id=master_node_id,
+        #     command=f"{activate_env} && /opt/netbox/netbox/manage.py collectstatic --no-input",
+        # )
 
         return self.restart_nodes(
             node_groups=[
@@ -462,32 +473,20 @@ class IaaSNetBox(IaaS):
             lazy=True,
         )
 
-    def uninstall_plugin(self, app_id, search=None):
+    def uninstall_plugin(self, plugin: dict):
         """
         Uninstall an addon for NetBox.
         """
-        # Check if the addon is already installed
-        if addon := self.get_installed_addon(
-            app_id=app_id, node_group=NODE_GROUP_CP, search=search
-        ):
-            logger.info(f"Uninstalling plugin {app_id}")
+        plugins = self.load_plugins()
+        plugins.pop(plugin.get("app_label"))
+        self.dump_plugins(plugins)
 
-            self.client.marketplace.Installation.Uninstall(
-                app_unique_name=addon.get("uniqueName"),
-                target_app_id=self.get_env().get("appid"),
-                app_template_id=app_id,
-            )
-
-            return self.restart_nodes(
-                node_groups=[
-                    node_group["name"] for node_group in self.get_nb_node_groups()
-                ],
-                lazy=True,
-            )
-
-        msg = f"Plugin {app_id} is not installed."
-        logger.info(msg)
-        return {"result": 0, "message": msg}
+        return self.restart_nodes(
+            node_groups=[
+                node_group["name"] for node_group in self.get_nb_node_groups()
+            ],
+            lazy=True,
+        )
 
     def get_env_var(self, variable, default=None):
         """

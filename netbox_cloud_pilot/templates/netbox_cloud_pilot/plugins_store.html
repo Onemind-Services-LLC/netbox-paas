@@ -21,6 +21,10 @@
                                 </span>
                                 <span class="separator">&middot;</span>
                                 <span class="mdi mdi-star" title="Stars">{{ plugin.stars }}</span>
+
+                                {% if plugin.installed %}
+                                    <span class="mdi mdi-check-circle" title="Installed"></span> v{{ plugin.current_version }}
+                                {% endif %}
                             </div>
                             <div class="card-body text-center">
                                 <h4>{{ plugin_name }}</h4>
@@ -38,15 +42,15 @@
                             </div>
                             <div class="card-footer text-end">
                                 {% if plugin.installed %}
-                                    <a class="btn btn-sm btn-cyan" href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_plugin_install' pk=object.pk %}?plugin_name={{ plugin_name }}&type=update&return_url={{ request.path }}">
+                                    <a class="btn btn-sm btn-cyan" href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_plugin_install' pk=object.pk %}?name={{ plugin_name }}&version={{ plugin.current_version }}&type=update&return_url={{ request.path }}">
                                         <i class="mdi mdi-cog"></i> Configure
                                     </a>
 
-                                    <a class="btn btn-sm btn-danger" href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_plugin_uninstall' pk=object.pk %}?plugin_name={{ plugin_name }}&return_url={{ request.path }}">
+                                    <a class="btn btn-sm btn-danger" href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_plugin_uninstall' pk=object.pk %}?name={{ plugin_name }}&return_url={{ request.path }}">
                                         <i class="mdi mdi-trash-can-outline"></i> Uninstall
                                     </a>
                                 {% else %}
-                                    <a class="btn btn-sm btn-primary" href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_plugin_install' pk=object.pk %}?plugin_name={{ plugin_name }}&type=install&return_url={{ request.path }}">
+                                    <a class="btn btn-sm btn-primary" href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_plugin_install' pk=object.pk %}?name={{ plugin_name }}&type=install&return_url={{ request.path }}">
                                         <i class="mdi mdi-plus-thick"></i> Install
                                     </a>
                                 {% endif %}

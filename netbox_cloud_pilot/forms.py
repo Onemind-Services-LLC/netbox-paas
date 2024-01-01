@@ -273,14 +273,14 @@ class NetBoxDBBackupForm(NetBoxModelForm):
 
 
 class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
-    plugin_name = forms.CharField(
+    name = forms.CharField(
         label="Plugin Name",
         help_text="Name of the plugin to install.",
         max_length=255,
         disabled=True,
     )
 
-    plugin_version = forms.ChoiceField(
+    version = forms.ChoiceField(
         label="Plugin Version",
         help_text="Version of the plugin to install.",
     )
@@ -293,12 +293,12 @@ class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
     )
 
     fieldsets = (
-        (None, ("plugin_name", "plugin_version")),
+        (None, ("name", "version")),
         ("Configuration", ("configuration",)),
     )
 
     class Meta:
-        fields = ["plugin_name", "plugin_version", "configuration"]
+        fields = ["name", "version", "configuration"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -307,29 +307,28 @@ class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
 
         # Get the plugins.yaml
         plugins = get_plugins_list()
-        if plugin := plugins.get(initial.get("plugin_name")):
-            self.fields["plugin_version"].choices = [
+        if plugin := plugins.get(initial.get("name")):
+            self.fields["version"].choices = [
                 (release, release) for release in filter_releases(plugin)
             ]
 
         if initial.get("type") == "update":
-            from django.apps import apps
+            from importlib.metadata import metadata
 
-            plugin_name = plugin.get("netbox_name")
-            app = apps.get_app_config(plugin_name)
-            self.fields["plugin_version"].initial = app.version
+            plugin_name = plugin.get("app_label")
+            self.fields["version"].initial = metadata(plugin_name).get("Version")
             self.fields["configuration"].initial = settings.PLUGINS_CONFIG[plugin_name]
 
     def clean(self):
         plugins = get_plugins_list()
-        plugin = plugins.get(self.cleaned_data.get("plugin_name"))
+        plugin = plugins.get(self.cleaned_data.get("name"))
 
         # If the plugin is private, ensure that license is provided
         nc = NetBoxConfiguration.objects.first()
         if plugin.get("private"):
             if not nc.license:
                 raise ValidationError(
-                    {"plugin_name": "This plugin requires a NetBox Enterprise license."}
+                    {"name": "This plugin requires a NetBox Enterprise license."}
                 )
 
             # Check if the plugin is accessible using the license
@@ -340,7 +339,7 @@ class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
             if not response.ok:
                 raise ValidationError(
                     {
-                        "plugin_name": "This plugin is not accessible using the provided license."
+                        "name": "This plugin is not accessible using the provided license."
                     }
                 )
 
