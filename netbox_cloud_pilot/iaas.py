@@ -394,26 +394,6 @@ class IaaSNetBox(IaaS):
 
         return results
 
-    def _reconfigure_plugin(
-        self, app_unique_name, version, netbox_name, plugin_settings=None
-    ):
-        logger.info(f"Reconfiguring addon {app_unique_name} to version {version}")
-
-        self.execute_action(
-            app_unique_name=app_unique_name,
-            params={"version": version},
-        )
-
-        self._update_plugin_settings(
-            netbox_name=netbox_name, plugin_settings=plugin_settings
-        )
-        return self.restart_nodes(
-            node_groups=[
-                node_group["name"] for node_group in self.get_nb_node_groups()
-            ],
-            lazy=True,
-        )
-
     def _update_plugin_settings(self, netbox_name, plugin_settings: dict):
         logger.info(f"Updating settings for NetBox plugin {netbox_name}")
 
@@ -436,25 +416,31 @@ class IaaSNetBox(IaaS):
     def install_plugin(self, app_id, version, netbox_name, plugin_settings=None):
         # Check if the addon is already installed
         if addon := self.get_installed_addon(app_id=app_id, node_group=NODE_GROUP_CP):
-            return self._reconfigure_plugin(
+            logger.info(f"Installing plugin {app_id} version {version}")
+            self.execute_action(
                 app_unique_name=addon.get("uniqueName"),
-                version=version,
-                netbox_name=netbox_name,
-                plugin_settings=plugin_settings,
+                params={"version": version},
             )
-
-        logger.info(f"Installing addon {app_id} version {version}")
-        self.client.marketplace.App.InstallAddon(
-            env_name=self.env_name,
-            app_id=app_id,
-            settings={"version": version},
-            node_group=NODE_GROUP_CP,
-            skip_email=True,
-        )
+        else:
+            logger.info(f"Installing plugin {app_id} version {version}")
+            self.client.marketplace.App.InstallAddon(
+                env_name=self.env_name,
+                app_id=app_id,
+                settings={"version": version},
+                node_group=NODE_GROUP_CP,
+                skip_email=True,
+            )
 
         self._update_plugin_settings(
             netbox_name=netbox_name, plugin_settings=plugin_settings
         )
+
+        # Run collectstatic command
+        self.execute_cmd(
+            node_id=self.get_master_node(NODE_GROUP_CP).get("id"),
+            command="/opt/netbox/venv/bin/python3 /opt/netbox/netbox/manage.py collectstatic --no-input",
+        )
+
         return self.restart_nodes(
             node_groups=[
                 node_group["name"] for node_group in self.get_nb_node_groups()
@@ -470,7 +456,7 @@ class IaaSNetBox(IaaS):
         if addon := self.get_installed_addon(
             app_id=app_id, node_group=NODE_GROUP_CP, search=search
         ):
-            logger.info(f"Uninstalling addon {app_id}")
+            logger.info(f"Uninstalling plugin {app_id}")
 
             self.client.marketplace.Installation.Uninstall(
                 app_unique_name=addon.get("uniqueName"),
