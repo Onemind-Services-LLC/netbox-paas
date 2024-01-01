@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   labels:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     name: Sync labels
     steps:
       - name: sync labels

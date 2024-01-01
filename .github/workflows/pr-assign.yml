@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   assign-author:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Assign PR to creator
         uses: toshimaru/auto-author-assign@v1.6.2
