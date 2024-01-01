@@ -82,11 +82,12 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
         if "." in self.env_name:
             raise ValidationError("Environment name must not contain dots.")
 
-        try:
-            # Ensure the provided env_name exists
-            self.iaas(self.env_name)
-        except JelasticApiError as e:
-            raise ValidationError(e)
+        if self.pk:
+            try:
+                # Ensure the provided env_name exists
+                self.iaas(self.env_name)
+            except JelasticApiError as e:
+                raise ValidationError(e)
 
         if self.env_name_storage:
             try:

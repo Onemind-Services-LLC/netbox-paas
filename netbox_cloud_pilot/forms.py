@@ -84,22 +84,23 @@ class NetBoxConfigurationForm(NetBoxModelForm):
 
         self.fields["env_name_storage"].initial = self.instance.env_name_storage
 
-        env_infos = (
-            self.instance.iaas(self.instance.env_name, auto_init=False)
-            .client.environment.Control.GetEnvs()
-            .get("infos", [])
-        )
-
-        # Fetch the environment list and build the choices
-        self.fields["env_name_storage"].choices = [
-            (
-                env_info["env"]["envName"],
-                f"{env_info['env']['displayName']} ({env_info['env']['envName']})",
+        if self.instance.env_name:
+            env_infos = (
+                self.instance.iaas(self.instance.env_name, auto_init=False)
+                .client.environment.Control.GetEnvs()
+                .get("infos", [])
             )
-            for env_info in env_infos
-            if env_info.get("env", {}).get("properties", {}).get("projectScope", "")
-            == "backup"
-        ]
+
+            # Fetch the environment list and build the choices
+            self.fields["env_name_storage"].choices = [
+                (
+                    env_info["env"]["envName"],
+                    f"{env_info['env']['displayName']} ({env_info['env']['envName']})",
+                )
+                for env_info in env_infos
+                if env_info.get("env", {}).get("properties", {}).get("projectScope", "")
+                   == "backup"
+            ]
 
 
 class NetBoxSettingsForm(BootstrapMixin, forms.Form):
