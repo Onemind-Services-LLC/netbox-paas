@@ -606,6 +606,25 @@ class IaaSNetBox(IaaS):
             var c = jelastic.environment.control, e = envName, s = session, r, resp;
             resp = c.GetEnvInfo(e, s);
             if (resp.result != 0) return resp;
+
+            // Wait for the environment to be running before redeploying
+            var isRunning = false, attempts = 0, maxAttempts = 30;
+            while (!isRunning && attempts < maxAttempts) {
+              envInfo = c.GetEnvInfo(e, s);
+              if (envInfo.result != 0) return envInfo;
+
+              if (envInfo.env.status == 1) {
+                isRunning = true;
+              } else {
+                attempts++;
+                java.lang.Thread.sleep(30000);
+              }
+            }
+
+            if (!isRunning) {
+              return { result: 1, message: 'Environment is not running' };
+            }
+
             r = c.RedeployContainersByGroup({ envName: e, session: s, nodeGroup: nodeGroup, tag: tag, useExistingVolumes: true });
             if (r.result != 0) return r;
             return { result: 0, message: 'Upgraded ' + nodeGroup}
