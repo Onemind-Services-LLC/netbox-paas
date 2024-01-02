@@ -174,7 +174,7 @@ NETBOX_SETTINGS = NbSettings(
                     help_text="Base path for URL patterns",
                     placeholder="/",
                     required=False,
-                    initial="/",
+                    initial=None,
                 ),
                 Param(
                     key="EMAIL_FROM",
