@@ -1,8 +1,10 @@
 from setuptools import find_packages, setup
 
-description = "Enhances NetBox on CloudMyDC's VAP with advanced management and control features."
+description = (
+    "Enhances NetBox on CloudMyDC's VAP with advanced management and control features."
+)
 
-with open("README.md", "r") as fh:
+with open("README.md") as fh:
     long_description = fh.read()
 
 setup(
