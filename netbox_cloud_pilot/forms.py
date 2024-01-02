@@ -322,6 +322,7 @@ class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
     def clean(self):
         plugins = get_plugins_list()
         plugin = plugins.get(self.cleaned_data.get("name"))
+        selected_version = self.cleaned_data.get("version")
 
         # If the plugin is private, ensure that license is provided
         nc = NetBoxConfiguration.objects.first()
@@ -344,7 +345,14 @@ class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
                 )
 
         # Get the required_settings from the plugin
-        required_settings = plugin.get("required_settings", [])
+        required_settings = next(
+            (
+                release.get("netbox", {}).get("required_settings", [])
+                for release in plugin.get("releases", [])
+                if release.get("tag") == selected_version
+            ),
+            [],
+        )
         configuration = self.cleaned_data.get("configuration")
 
         # Check if the required_settings are in the configuration
