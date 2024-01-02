@@ -441,6 +441,9 @@ class IaaSNetBox(IaaS):
 
         # Install the plugin version
         if plugin.get("private"):
+            # Ensure `git` is installed
+            self.execute_cmd(master_node_id, "apt-get install -y git")
+
             github_url = plugin.get("github_url")
             github_url = github_url.replace(
                 "https://github.com", f"git+https://{github_token}@github.com"
