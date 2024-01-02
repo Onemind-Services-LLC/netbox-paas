@@ -286,6 +286,34 @@ class NetBoxPluginListView(View):
                         }
                     )
 
+            # Divide the plugins into two lists: installed and not installed
+            plugins = {
+                "installed": {
+                    plugin_name: plugin
+                    for plugin_name, plugin in plugins.items()
+                    if plugin.get("installed")
+                },
+                "not_installed": {
+                    plugin_name: plugin
+                    for plugin_name, plugin in plugins.items()
+                    if not plugin.get("installed")
+                },
+            }
+
+            # Divide not installed plugins into two lists: subscription and community
+            plugins["not_installed"] = {
+                "subscription": {
+                    plugin_name: plugin
+                    for plugin_name, plugin in plugins["not_installed"].items()
+                    if plugin.get("private")
+                },
+                "community": {
+                    plugin_name: plugin
+                    for plugin_name, plugin in plugins["not_installed"].items()
+                    if not plugin.get("private")
+                },
+            }
+
             return render(
                 request,
                 "netbox_cloud_pilot/plugins_store.html",
