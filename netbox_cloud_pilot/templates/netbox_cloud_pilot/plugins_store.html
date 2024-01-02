@@ -29,7 +29,7 @@
                             <div class="card-body text-center">
                                 <h4>{{ plugin_name }}</h4>
                                 <p>{{ plugin.description }}</p>
-                                {% if plugin.github_url %}
+                                {% if plugin.github_url and not plugin.private %}
                                     <a href="{{ plugin.github_url }}" target="_blank" class="btn btn-sm">
                                         <i class="mdi mdi-github"></i> View on GitHub
                                     </a>
