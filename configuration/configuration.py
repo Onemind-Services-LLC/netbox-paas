@@ -49,10 +49,7 @@ DATABASE = {
     # Database connection SSLMODE
     "CONN_MAX_AGE": int(environ.get("DB_CONN_MAX_AGE", "300")),
     # Max database connection age
-    "DISABLE_SERVER_SIDE_CURSORS": environ.get(
-        "DB_DISABLE_SERVER_SIDE_CURSORS", "False"
-    ).lower()
-    == "true",
+    "DISABLE_SERVER_SIDE_CURSORS": environ.get("DB_DISABLE_SERVER_SIDE_CURSORS", "False").lower() == "true",
     # Disable the use of server-side cursors transaction pooling
 }
 
@@ -66,10 +63,7 @@ REDIS = {
         "PASSWORD": _read_secret("redis_password", environ.get("REDIS_PASSWORD", "")),
         "DATABASE": int(environ.get("REDIS_DATABASE", 0)),
         "SSL": environ.get("REDIS_SSL", "False").lower() == "true",
-        "INSECURE_SKIP_TLS_VERIFY": environ.get(
-            "REDIS_INSECURE_SKIP_TLS_VERIFY", "False"
-        ).lower()
-        == "true",
+        "INSECURE_SKIP_TLS_VERIFY": environ.get("REDIS_INSECURE_SKIP_TLS_VERIFY", "False").lower() == "true",
     },
     "caching": {
         "HOST": environ.get("REDIS_CACHE_HOST", environ.get("REDIS_HOST", "localhost")),
@@ -79,8 +73,7 @@ REDIS = {
             environ.get("REDIS_CACHE_PASSWORD", environ.get("REDIS_PASSWORD", "")),
         ),
         "DATABASE": int(environ.get("REDIS_CACHE_DATABASE", 1)),
-        "SSL": environ.get("REDIS_CACHE_SSL", environ.get("REDIS_SSL", "False")).lower()
-        == "true",
+        "SSL": environ.get("REDIS_CACHE_SSL", environ.get("REDIS_SSL", "False")).lower() == "true",
         "INSECURE_SKIP_TLS_VERIFY": environ.get(
             "REDIS_CACHE_INSECURE_SKIP_TLS_VERIFY",
             environ.get("REDIS_INSECURE_SKIP_TLS_VERIFY", "False"),

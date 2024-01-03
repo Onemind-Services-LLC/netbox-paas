@@ -54,6 +54,4 @@ def filter_releases(plugin):
 
 
 def job_msg(job):
-    return mark_safe(
-        f"Job <a href='{job.get_absolute_url()}'>{job}</a> has been created successfully."
-    )
+    return mark_safe(f"Job <a href='{job.get_absolute_url()}'>{job}</a> has been created successfully.")
