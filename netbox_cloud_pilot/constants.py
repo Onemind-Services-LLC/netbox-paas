@@ -5,9 +5,7 @@ from utilities.forms import BOOLEAN_WITH_BLANK_CHOICES
 from .nb_settings import *
 
 JELASTIC_API = "https://app.xapp.cloudmydc.com"
-NETBOX_JPS_REPO = (
-    "https://raw.githubusercontent.com/Onemind-Services-LLC/netbox-jps/master"
-)
+NETBOX_JPS_REPO = "https://raw.githubusercontent.com/Onemind-Services-LLC/netbox-jps/master"
 NODE_GROUP_CP = "cp"
 NODE_GROUP_SQLDB = "sqldb"
 
@@ -296,9 +294,7 @@ NETBOX_SETTINGS = NbSettings(
                     placeholder="{'filter_name': 'path.to.filter'}",
                     required=False,
                     field=forms.JSONField,
-                    field_kwargs={
-                        "widget": forms.Textarea(attrs={"class": "vLargeTextField"})
-                    },
+                    field_kwargs={"widget": forms.Textarea(attrs={"class": "vLargeTextField"})},
                     initial={},
                 ),
                 Param(
@@ -336,9 +332,7 @@ NETBOX_SETTINGS = NbSettings(
                     placeholder="{'location': '/var/netbox/media'}",
                     required=False,
                     field=forms.JSONField,
-                    field_kwargs={
-                        "widget": forms.Textarea(attrs={"class": "vLargeTextField"})
-                    },
+                    field_kwargs={"widget": forms.Textarea(attrs={"class": "vLargeTextField"})},
                     initial={},
                 ),
             ],
@@ -372,9 +366,7 @@ NETBOX_SETTINGS = NbSettings(
                     placeholder="[]",
                     required=False,
                     field=forms.JSONField,
-                    field_kwargs={
-                        "widget": forms.Textarea(attrs={"class": "vLargeTextField"})
-                    },
+                    field_kwargs={"widget": forms.Textarea(attrs={"class": "vLargeTextField"})},
                     initial=[
                         [
                             {
@@ -500,9 +492,7 @@ NETBOX_SETTINGS = NbSettings(
                     help_text="List of custom data validators",
                     placeholder="[]",
                     required=False,
-                    field_kwargs={
-                        "widget": forms.Textarea(attrs={"class": "vLargeTextField"})
-                    },
+                    field_kwargs={"widget": forms.Textarea(attrs={"class": "vLargeTextField"})},
                 ),
                 Param(
                     key="FIELD_CHOICES",
@@ -510,9 +500,7 @@ NETBOX_SETTINGS = NbSettings(
                     help_text="List of custom field choices",
                     placeholder="[]",
                     required=False,
-                    field_kwargs={
-                        "widget": forms.Textarea(attrs={"class": "vLargeTextField"})
-                    },
+                    field_kwargs={"widget": forms.Textarea(attrs={"class": "vLargeTextField"})},
                 ),
             ],
         ),
@@ -525,9 +513,7 @@ NETBOX_SETTINGS = NbSettings(
                     help_text="Default dashboard for users",
                     required=False,
                     field=forms.JSONField,
-                    field_kwargs={
-                        "widget": forms.Textarea(attrs={"class": "vLargeTextField"})
-                    },
+                    field_kwargs={"widget": forms.Textarea(attrs={"class": "vLargeTextField"})},
                     initial=DEFAULT_DASHBOARD,
                 ),
                 Param(
@@ -536,9 +522,7 @@ NETBOX_SETTINGS = NbSettings(
                     help_text="Default user preferences",
                     required=False,
                     field=forms.JSONField,
-                    field_kwargs={
-                        "widget": forms.Textarea(attrs={"class": "vLargeTextField"})
-                    },
+                    field_kwargs={"widget": forms.Textarea(attrs={"class": "vLargeTextField"})},
                     initial={},
                 ),
                 Param(
@@ -654,9 +638,7 @@ NETBOX_SETTINGS = NbSettings(
                     help_text="List of NetBox administrators",
                     placeholder="[('NetBox Admin', 'admin@example.com')]",
                     required=False,
-                    field_kwargs={
-                        "widget": forms.Textarea(attrs={"class": "vLargeTextField"})
-                    },
+                    field_kwargs={"widget": forms.Textarea(attrs={"class": "vLargeTextField"})},
                 ),
                 Param(
                     key="BANNER_BOTTOM",
@@ -664,9 +646,7 @@ NETBOX_SETTINGS = NbSettings(
                     help_text="Bottom banner text",
                     placeholder="Banner text",
                     required=False,
-                    field_kwargs={
-                        "widget": forms.Textarea(attrs={"class": "vLargeTextField"})
-                    },
+                    field_kwargs={"widget": forms.Textarea(attrs={"class": "vLargeTextField"})},
                 ),
                 Param(
                     key="BANNER_LOGIN",
@@ -674,9 +654,7 @@ NETBOX_SETTINGS = NbSettings(
                     help_text="Login banner text",
                     placeholder="Banner text",
                     required=False,
-                    field_kwargs={
-                        "widget": forms.Textarea(attrs={"class": "vLargeTextField"})
-                    },
+                    field_kwargs={"widget": forms.Textarea(attrs={"class": "vLargeTextField"})},
                 ),
                 Param(
                     key="BANNER_TOP",
@@ -684,9 +662,7 @@ NETBOX_SETTINGS = NbSettings(
                     help_text="Top banner text",
                     placeholder="Banner text",
                     required=False,
-                    field_kwargs={
-                        "widget": forms.Textarea(attrs={"class": "vLargeTextField"})
-                    },
+                    field_kwargs={"widget": forms.Textarea(attrs={"class": "vLargeTextField"})},
                 ),
                 Param(
                     key="BANNER_MAINTENANCE",
@@ -694,9 +670,7 @@ NETBOX_SETTINGS = NbSettings(
                     help_text="Maintenance banner text",
                     placeholder="Banner text",
                     required=False,
-                    field_kwargs={
-                        "widget": forms.Textarea(attrs={"class": "vLargeTextField"})
-                    },
+                    field_kwargs={"widget": forms.Textarea(attrs={"class": "vLargeTextField"})},
                 ),
                 Param(
                     key="CENSUS_REPORTING_ENABLED",
@@ -822,9 +796,7 @@ NETBOX_SETTINGS = NbSettings(
                     placeholder="{'queue_name': 'queue_name'}",
                     required=False,
                     field=forms.JSONField,
-                    field_kwargs={
-                        "widget": forms.Textarea(attrs={"class": "vLargeTextField"})
-                    },
+                    field_kwargs={"widget": forms.Textarea(attrs={"class": "vLargeTextField"})},
                 ),
                 Param(
                     key="RELEASE_CHECK_URL",

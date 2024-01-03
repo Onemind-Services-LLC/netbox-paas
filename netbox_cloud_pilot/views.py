@@ -132,14 +132,10 @@ class NetBoxRestartView(PermissionRequiredMixin, View):
             node_groups=[node_group],
         )
         messages.success(request, utils.job_msg(job))
-        return redirect(
-            "plugins:netbox_cloud_pilot:netboxconfiguration", pk=instance.pk
-        )
+        return redirect("plugins:netbox_cloud_pilot:netboxconfiguration", pk=instance.pk)
 
 
-@register_model_view(
-    models.NetBoxConfiguration, "backup_storage", path="backup-storage"
-)
+@register_model_view(models.NetBoxConfiguration, "backup_storage", path="backup-storage")
 class NetBoxStorageView(PermissionRequiredMixin, GetReturnURLMixin, View):
     def get_permission_required(self):
         return ["netbox_cloud_pilot.view_netboxconfiguration"]
@@ -272,9 +268,7 @@ class NetBoxPluginListView(View):
     def get(self, request):
         if nc := models.NetBoxConfiguration.objects.first():
             installed_plugins = settings.PLUGINS
-            installed_plugins = [
-                metadata(plugin).get("Name") for plugin in installed_plugins
-            ]
+            installed_plugins = [metadata(plugin).get("Name") for plugin in installed_plugins]
 
             plugins = utils.get_plugins_list()
             for plugin_name, _ in plugins.items():
@@ -289,14 +283,10 @@ class NetBoxPluginListView(View):
             # Divide the plugins into two lists: installed and not installed
             plugins = {
                 "installed": {
-                    plugin_name: plugin
-                    for plugin_name, plugin in plugins.items()
-                    if plugin.get("installed")
+                    plugin_name: plugin for plugin_name, plugin in plugins.items() if plugin.get("installed")
                 },
                 "not_installed": {
-                    plugin_name: plugin
-                    for plugin_name, plugin in plugins.items()
-                    if not plugin.get("installed")
+                    plugin_name: plugin for plugin_name, plugin in plugins.items() if not plugin.get("installed")
                 },
             }
 
@@ -367,9 +357,7 @@ class NetBoxPluginUpgradesView(PermissionRequiredMixin, GetReturnURLMixin, View)
         )
 
 
-@register_model_view(
-    models.NetBoxConfiguration, "plugin_install", path="plugin-install"
-)
+@register_model_view(models.NetBoxConfiguration, "plugin_install", path="plugin-install")
 class NetBoxPluginInstallView(generic.ObjectEditView):
     queryset = models.NetBoxConfiguration.objects.all()
     form = forms.NetBoxPluginInstallForm
@@ -430,9 +418,7 @@ class NetBoxPluginInstallView(generic.ObjectEditView):
         )
 
 
-@register_model_view(
-    models.NetBoxConfiguration, "plugin_uninstall", path="plugin-uninstall"
-)
+@register_model_view(models.NetBoxConfiguration, "plugin_uninstall", path="plugin-uninstall")
 class NetBoxPluginUninstallView(generic.ObjectDeleteView):
     queryset = models.NetBoxConfiguration.objects.all()
     template_name = "netbox_cloud_pilot/plugin_uninstall.html"

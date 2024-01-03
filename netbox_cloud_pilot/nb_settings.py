@@ -63,9 +63,7 @@ class Param(Base):
             if widget and hasattr(widget, "attrs"):
                 # Update the class attribute, retaining existing classes
                 existing_classes = widget.attrs.get("class", "")
-                widget.attrs["class"] = " ".join(
-                    filter(None, [existing_classes, "form-control"])
-                )
+                widget.attrs["class"] = " ".join(filter(None, [existing_classes, "form-control"]))
             else:
                 # If widget is not provided or doesn't have attrs, use the default
                 field_kwargs.update(default_kwargs)
