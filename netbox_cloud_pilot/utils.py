@@ -33,18 +33,19 @@ def is_compatible(netbox_version, min_version, max_version):
     return True
 
 
-def filter_releases(plugin):
+def filter_releases(plugin, version: str = None):
     """
     Filter the releases based on the NetBox version.
     """
     compatible_releases = []
+    version = version or settings.VERSION
 
     for release in plugin.get("releases", []):
         netbox = release.get("netbox")
         min_version = netbox.get("min")
         max_version = netbox.get("max")
 
-        if is_compatible(settings.VERSION, min_version, max_version):
+        if is_compatible(version, min_version, max_version):
             compatible_releases.append(release["tag"])
 
     try:
@@ -54,6 +55,4 @@ def filter_releases(plugin):
 
 
 def job_msg(job):
-    return mark_safe(
-        f"Job <a href='{job.get_absolute_url()}'>{job}</a> has been created successfully."
-    )
+    return mark_safe(f"Job <a href='{job.get_absolute_url()}'>{job}</a> has been created successfully.")

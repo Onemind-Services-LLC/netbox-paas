@@ -35,9 +35,7 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
     NetBoxConfig is a model that represents the configuration of NetBox.
     """
 
-    key = models.CharField(
-        max_length=255, unique=True, validators=[MinLengthValidator(40)]
-    )
+    key = models.CharField(max_length=255, unique=True, validators=[MinLengthValidator(40)])
 
     env_name = models.CharField(
         max_length=255,
@@ -112,12 +110,7 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
         return self.iaas(self.env_name)
 
     def get_docker_tag(self):
-        return (
-            self.get_env()
-            .get_master_node(NODE_GROUP_CP)
-            .get("customitem", {})
-            .get("dockerTag", "")
-        )
+        return self.get_env().get_master_node(NODE_GROUP_CP).get("customitem", {}).get("dockerTag", "")
 
     def get_env_storage(self):
         return self.iaas(self.env_name_storage)
@@ -151,9 +144,7 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
                 initial = env.get_env_var(param.key, param.initial)
 
                 # Alter list of strings to comma-separated string
-                if isinstance(initial, (tuple, list)) and all(
-                    [isinstance(x, str) for x in initial]
-                ):
+                if isinstance(initial, (tuple, list)) and all([isinstance(x, str) for x in initial]):
                     initial = ", ".join(initial)
 
                 param.initial = initial
@@ -168,11 +159,7 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
         """
         logger.debug(f"Applying NetBox settings: {data}")
 
-        all_keys = [
-            param.key
-            for section in NETBOX_SETTINGS.sections
-            for param in section.params
-        ]
+        all_keys = [param.key for section in NETBOX_SETTINGS.sections for param in section.params]
 
         env = self.get_env()
         # Get all NetBox node groups
@@ -329,20 +316,14 @@ class NetBoxDBBackup(ChangeLoggedModel):
         # Ensure netbox_env has a storage env connected before proceeding
         if not self.netbox_env.env_name_storage:
             raise ValidationError(
-                {
-                    "netbox_env": "Add a backup storage environment to the NetBoxConfiguration instance."
-                }
+                {"netbox_env": "Add a backup storage environment to the NetBoxConfiguration instance."}
             )
 
         if self.keep_backups > 30:
-            raise ValidationError(
-                {"keep_backups": "The maximum number of backups to keep is 30."}
-            )
+            raise ValidationError({"keep_backups": "The maximum number of backups to keep is 30."})
 
         if self.keep_backups < 1:
-            raise ValidationError(
-                {"keep_backups": "The minimum number of backups to keep is 1."}
-            )
+            raise ValidationError({"keep_backups": "The minimum number of backups to keep is 1."})
 
         try:
             croniter(self.crontab)
@@ -367,11 +348,7 @@ class NetBoxDBBackup(ChangeLoggedModel):
             node_id=master_node.get("id"), command="/root/getBackupsAllEnvs.sh"
         )[0]
 
-        if (
-            backups := json.loads(result.get("out", ""))
-            .get("backups", {})
-            .get(self.netbox_env.env_name, [])
-        ):
+        if backups := json.loads(result.get("out", "")).get("backups", {}).get(self.netbox_env.env_name, []):
             # Cache backups in case next time it returns empty
             cache.set(f"netbox_db_backups_{self.pk}", backups, timeout=60 * 60)
         else:
@@ -420,9 +397,7 @@ class NetBoxDBBackup(ChangeLoggedModel):
         Create a new database backup.
         """
         # Get installed addon
-        addon = self.netbox_env.get_env().get_installed_addon(
-            app_id="db-backup", node_group=NODE_GROUP_SQLDB
-        )
+        addon = self.netbox_env.get_env().get_installed_addon(app_id="db-backup", node_group=NODE_GROUP_SQLDB)
 
         return self.netbox_env.enqueue(
             self.netbox_env.get_env().db_backup,
@@ -435,9 +410,7 @@ class NetBoxDBBackup(ChangeLoggedModel):
         Restore a database backup.
         """
         # Get installed addon
-        addon = self.netbox_env.get_env().get_installed_addon(
-            app_id="db-backup", node_group=NODE_GROUP_SQLDB
-        )
+        addon = self.netbox_env.get_env().get_installed_addon(app_id="db-backup", node_group=NODE_GROUP_SQLDB)
 
         return self.netbox_env.enqueue(
             self.netbox_env.get_env().execute_action,

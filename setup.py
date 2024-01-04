@@ -1,14 +1,16 @@
+import os
+
 from setuptools import find_packages, setup
 
-description = "Enhances NetBox on CloudMyDC's VAP with advanced management and control features."
+readme = os.path.join(os.path.dirname(__file__), 'README.md')
 
-with open("README.md", "r") as fh:
+with open(readme) as fh:
     long_description = fh.read()
 
 setup(
     name="netbox-cloud-pilot",
-    version="0.0.1",
-    description=description,
+    version="0.0.2",
+    description="Enhances NetBox on CloudMyDC's VAP with advanced management and control features.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Onemind-Services-LLC/netbox-cloud-pilot/",

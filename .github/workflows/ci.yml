@@ -30,7 +30,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    name: Runs plugin tests - NetBox v3.5
+    name: Runs plugin tests
 
     steps:
       - name: Checkout

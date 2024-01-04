@@ -4,7 +4,7 @@ from django.conf import settings
 from django.forms import ValidationError
 
 from netbox.forms import NetBoxModelForm
-from utilities.forms import BootstrapMixin
+from utilities.forms import BootstrapMixin, ConfirmationForm as _ConfirmationForm
 from utilities.forms.fields import CommentField
 from .constants import NETBOX_SETTINGS, NODE_GROUP_SQLDB
 from .models import *
@@ -98,8 +98,7 @@ class NetBoxConfigurationForm(NetBoxModelForm):
                     f"{env_info['env']['displayName']} ({env_info['env']['envName']})",
                 )
                 for env_info in env_infos
-                if env_info.get("env", {}).get("properties", {}).get("projectScope", "")
-                == "backup"
+                if env_info.get("env", {}).get("properties", {}).get("projectScope", "") == "backup"
             ]
 
 
@@ -107,11 +106,7 @@ class NetBoxSettingsForm(BootstrapMixin, forms.Form):
     fieldsets = create_fieldset()
 
     class Meta:
-        fields = [
-            param.key.lower()
-            for section in NETBOX_SETTINGS.sections
-            for param in section.params
-        ]
+        fields = [param.key.lower() for section in NETBOX_SETTINGS.sections for param in section.params]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -200,11 +195,7 @@ class NetBoxBackupStorageForm(BootstrapMixin, forms.Form):
 
         # Fetch the region list and build the choices
         nc = NetBoxConfiguration.objects.first()
-        regions = (
-            nc.iaas(nc.env_name, auto_init=False)
-            .client.environment.Control.GetRegions()
-            .get("array", [])
-        )
+        regions = nc.iaas(nc.env_name, auto_init=False).client.environment.Control.GetRegions().get("array", [])
         self.fields["region"].choices = [
             (hard_node_group["uniqueName"], region["displayName"])
             for region in regions
@@ -216,17 +207,11 @@ class NetBoxBackupStorageForm(BootstrapMixin, forms.Form):
 
         if cleaned_data["deployment"] == "cluster":
             if cleaned_data["node_count"] == "1":
-                raise ValidationError(
-                    {
-                        "node_count": "Node count must be greater than 1 for a cluster deployment."
-                    }
-                )
+                raise ValidationError({"node_count": "Node count must be greater than 1 for a cluster deployment."})
 
         if cleaned_data["deployment"] == "standalone":
             if cleaned_data["node_count"] != "1":
-                raise ValidationError(
-                    {"node_count": "Node count must be 1 for a standalone deployment."}
-                )
+                raise ValidationError({"node_count": "Node count must be 1 for a standalone deployment."})
 
         return cleaned_data
 
@@ -254,9 +239,7 @@ class NetBoxDBBackupForm(NetBoxModelForm):
 
         if self.instance.pk:
             # Fetch the database password from the addon settings
-            app = self.instance.netbox_env.get_env().get_installed_addon(
-                "db-backup", node_group=NODE_GROUP_SQLDB
-            )
+            app = self.instance.netbox_env.get_env().get_installed_addon("db-backup", node_group=NODE_GROUP_SQLDB)
             data = app.get("settings", {}).get("main", {}).get("data", {})
             self.fields["db_password"].initial = data.get("dbpass")
 
@@ -267,9 +250,7 @@ class NetBoxDBBackupForm(NetBoxModelForm):
             self.instance._db_password = db_password
 
         if not self.instance.pk and not db_password:
-            raise ValidationError(
-                {"db_password": "This field is required when adding a new backup."}
-            )
+            raise ValidationError({"db_password": "This field is required when adding a new backup."})
 
 
 class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
@@ -308,9 +289,7 @@ class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
         # Get the plugins.yaml
         plugins = get_plugins_list()
         if plugin := plugins.get(initial.get("name")):
-            self.fields["version"].choices = [
-                (release, release) for release in filter_releases(plugin)
-            ]
+            self.fields["version"].choices = [(release, release) for release in filter_releases(plugin)]
 
         if initial.get("type") == "update":
             from importlib.metadata import metadata
@@ -322,14 +301,13 @@ class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
     def clean(self):
         plugins = get_plugins_list()
         plugin = plugins.get(self.cleaned_data.get("name"))
+        selected_version = self.cleaned_data.get("version")
 
         # If the plugin is private, ensure that license is provided
         nc = NetBoxConfiguration.objects.first()
         if plugin.get("private"):
             if not nc.license:
-                raise ValidationError(
-                    {"name": "This plugin requires a NetBox Enterprise license."}
-                )
+                raise ValidationError({"name": "This plugin requires a NetBox Enterprise license."})
 
             # Check if the plugin is accessible using the license
             response = requests.get(
@@ -337,23 +315,22 @@ class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
                 headers={"Authorization": f"Bearer {nc.license}"},
             )
             if not response.ok:
-                raise ValidationError(
-                    {
-                        "name": "This plugin is not accessible using the provided license."
-                    }
-                )
+                raise ValidationError({"name": "This plugin is not accessible using the provided license."})
 
         # Get the required_settings from the plugin
-        required_settings = plugin.get("required_settings", [])
+        required_settings = next(
+            (
+                release.get("netbox", {}).get("required_settings", [])
+                for release in plugin.get("releases", [])
+                if release.get("tag") == selected_version
+            ),
+            [],
+        )
         configuration = self.cleaned_data.get("configuration")
 
         # Check if the required_settings are in the configuration
         if not all(key in configuration.keys() for key in required_settings):
-            raise ValidationError(
-                {
-                    "configuration": f"Missing required settings: {', '.join(required_settings)}"
-                }
-            )
+            raise ValidationError({"configuration": f"Missing required settings: {', '.join(required_settings)}"})
 
 
 class NetBoxUpgradeForm(BootstrapMixin, forms.Form):
@@ -371,7 +348,24 @@ class NetBoxUpgradeForm(BootstrapMixin, forms.Form):
         instance = NetBoxConfiguration.objects.first()
         env = instance.get_env()
 
-        versions = env.get_patch_upgrades()
-        self.fields["version"].choices = [
-            (str(version), str(version)) for version in versions
-        ]
+        versions = env.get_upgrades()
+        self.fields["version"].choices = [(str(version), str(version)) for version in versions]
+
+    def clean(self):
+        super().clean()
+
+        instance = NetBoxConfiguration.objects.first()
+        env = instance.get_env()
+
+        # Run upgrade checks
+        upgrade_check, error = env.upgrade_checks(self.cleaned_data.get("version"))
+        if not upgrade_check:
+            raise ValidationError({"version": error})
+
+
+class ConfirmationForm(_ConfirmationForm):
+    """
+    A generic confirmation form. The form is not valid unless the `confirm` field is checked.
+    """
+
+    name = forms.CharField(widget=forms.HiddenInput())

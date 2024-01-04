@@ -132,14 +132,10 @@ class NetBoxRestartView(PermissionRequiredMixin, View):
             node_groups=[node_group],
         )
         messages.success(request, utils.job_msg(job))
-        return redirect(
-            "plugins:netbox_cloud_pilot:netboxconfiguration", pk=instance.pk
-        )
+        return redirect("plugins:netbox_cloud_pilot:netboxconfiguration", pk=instance.pk)
 
 
-@register_model_view(
-    models.NetBoxConfiguration, "backup_storage", path="backup-storage"
-)
+@register_model_view(models.NetBoxConfiguration, "backup_storage", path="backup-storage")
 class NetBoxStorageView(PermissionRequiredMixin, GetReturnURLMixin, View):
     def get_permission_required(self):
         return ["netbox_cloud_pilot.view_netboxconfiguration"]
@@ -272,9 +268,7 @@ class NetBoxPluginListView(View):
     def get(self, request):
         if nc := models.NetBoxConfiguration.objects.first():
             installed_plugins = settings.PLUGINS
-            installed_plugins = [
-                metadata(plugin).get("Name") for plugin in installed_plugins
-            ]
+            installed_plugins = [metadata(plugin).get("Name") for plugin in installed_plugins]
 
             plugins = utils.get_plugins_list()
             for plugin_name, _ in plugins.items():
@@ -285,6 +279,30 @@ class NetBoxPluginListView(View):
                             "current_version": metadata(plugin_name).get("Version"),
                         }
                     )
+
+            # Divide the plugins into two lists: installed and not installed
+            plugins = {
+                "installed": {
+                    plugin_name: plugin for plugin_name, plugin in plugins.items() if plugin.get("installed")
+                },
+                "not_installed": {
+                    plugin_name: plugin for plugin_name, plugin in plugins.items() if not plugin.get("installed")
+                },
+            }
+
+            # Divide not installed plugins into two lists: subscription and community
+            plugins["not_installed"] = {
+                "subscription": {
+                    plugin_name: plugin
+                    for plugin_name, plugin in plugins["not_installed"].items()
+                    if plugin.get("private")
+                },
+                "community": {
+                    plugin_name: plugin
+                    for plugin_name, plugin in plugins["not_installed"].items()
+                    if not plugin.get("private")
+                },
+            }
 
             return render(
                 request,
@@ -334,14 +352,12 @@ class NetBoxPluginUpgradesView(PermissionRequiredMixin, GetReturnURLMixin, View)
             "generic/object_edit.html",
             {
                 "object": obj,
-                "form": self.form(instance=obj),
+                "form": form,
             },
         )
 
 
-@register_model_view(
-    models.NetBoxConfiguration, "plugin_install", path="plugin-install"
-)
+@register_model_view(models.NetBoxConfiguration, "plugin_install", path="plugin-install")
 class NetBoxPluginInstallView(generic.ObjectEditView):
     queryset = models.NetBoxConfiguration.objects.all()
     form = forms.NetBoxPluginInstallForm
@@ -402,9 +418,7 @@ class NetBoxPluginInstallView(generic.ObjectEditView):
         )
 
 
-@register_model_view(
-    models.NetBoxConfiguration, "plugin_uninstall", path="plugin-uninstall"
-)
+@register_model_view(models.NetBoxConfiguration, "plugin_uninstall", path="plugin-uninstall")
 class NetBoxPluginUninstallView(generic.ObjectDeleteView):
     queryset = models.NetBoxConfiguration.objects.all()
     template_name = "netbox_cloud_pilot/plugin_uninstall.html"
@@ -417,14 +431,13 @@ class NetBoxPluginUninstallView(generic.ObjectDeleteView):
             messages.error(request, "Plugin not found.")
             return redirect("plugins:netbox_cloud_pilot:netboxplugin_list")
 
-        form = ConfirmationForm(initial=request.GET)
+        form = forms.ConfirmationForm(initial=request.GET)
 
         return render(
             request,
             self.template_name,
             {
                 "object": obj,
-                "plugin": plugin,
                 "form": form,
                 "return_url": self.get_return_url(request, obj),
                 **self.get_extra_context(request, obj),
@@ -433,11 +446,10 @@ class NetBoxPluginUninstallView(generic.ObjectDeleteView):
 
     def post(self, request, *args, **kwargs):
         obj = self.get_object(**kwargs)
-        form = ConfirmationForm(request.POST)
-
-        plugin = utils.get_plugins_list().get(request.POST.get("name"))
+        form = forms.ConfirmationForm(request.POST)
 
         if form.is_valid():
+            plugin = utils.get_plugins_list().get(form.cleaned_data["name"])
             job = obj.enqueue(obj.get_env().uninstall_plugin, request, plugin=plugin)
 
             messages.success(request, utils.job_msg(job))
@@ -448,7 +460,6 @@ class NetBoxPluginUninstallView(generic.ObjectDeleteView):
             self.template_name,
             {
                 "object": obj,
-                "plugin": plugin,
                 "form": form,
                 "return_url": self.get_return_url(request, obj),
                 **self.get_extra_context(request, obj),

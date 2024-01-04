@@ -1,6 +1,7 @@
 import logging
 import time
 from functools import lru_cache
+from typing import Tuple
 
 import requests
 import yaml
@@ -12,6 +13,7 @@ from semver.version import Version
 from core.choices import JobStatusChoices
 from core.models import Job
 from netbox.config import get_config
+from . import utils
 from .constants import JELASTIC_API, NODE_GROUP_CP, NODE_GROUP_SQLDB
 
 logger = logging.getLogger("netbox_cloud_pilot")
@@ -116,9 +118,7 @@ class IaaS(IaaSJob):
         """
         Get the environment nodes.
         """
-        logger.debug(
-            f"Getting nodes for node group {node_group}, is_master={is_master}"
-        )
+        logger.debug(f"Getting nodes for node group {node_group}, is_master={is_master}")
         nodes = self._get_env_info().get("nodes", [])
         if node_group:
             nodes = [node for node in nodes if node["nodeGroup"] == node_group]
@@ -137,9 +137,7 @@ class IaaS(IaaSJob):
 
         # For each node group, get the related nodes
         for node_group in node_groups:
-            node_group["node"] = self.get_nodes(
-                node_group=node_group["name"], is_master=True
-            )
+            node_group["node"] = self.get_nodes(node_group=node_group["name"], is_master=True)
 
         return node_groups
 
@@ -162,9 +160,7 @@ class IaaS(IaaSJob):
         """
         Check if SSL is enabled.
         """
-        logger.debug(
-            f"Checking if built-in SSL is enabled for environment {self.env_name}"
-        )
+        logger.debug(f"Checking if built-in SSL is enabled for environment {self.env_name}")
         return self.get_env().get("sslstate", False)
 
     def get_node_log(self, node_id, path="/var/log/run.log"):
@@ -172,9 +168,9 @@ class IaaS(IaaSJob):
         Get the logs of a node.
         """
         logger.debug(f"Getting log for node {node_id} for environment {self.env_name}")
-        return self.client.environment.Control.ReadLog(
-            env_name=self.env_name, node_id=node_id, path=path
-        ).get("body", "")
+        return self.client.environment.Control.ReadLog(env_name=self.env_name, node_id=node_id, path=path).get(
+            "body", ""
+        )
 
     def get_url(self):
         """
@@ -201,17 +197,11 @@ class IaaS(IaaSJob):
         """
         Get the installed addon for a node group.
         """
-        logger.debug(
-            f"Checking if addon ({app_id}) is installed for node group {node_group}"
-        )
+        logger.debug(f"Checking if addon ({app_id}) is installed for node group {node_group}")
         addons = self.get_addons(node_group=node_group, search=search)
 
         return next(
-            (
-                addon
-                for addon in addons
-                if addon["app_id"] == app_id and addon.get("isInstalled", False)
-            ),
+            (addon for addon in addons if addon["app_id"] == app_id and addon.get("isInstalled", False)),
             None,
         )
 
@@ -257,16 +247,12 @@ class IaaS(IaaSJob):
             for script in scripts:
                 if script.get("name") == name:
                     logger.debug(f"Deleting existing script {name}")
-                    self.client.development.Scripting.DeleteScript(
-                        app_id=app_id, name=name
-                    )
+                    self.client.development.Scripting.DeleteScript(app_id=app_id, name=name)
                     continue
         except JelasticApiError as e:
             logger.error(e)
 
-        self.client.development.Scripting.CreateScript(
-            app_id=app_id, name=name, type="js", code=code
-        )
+        self.client.development.Scripting.CreateScript(app_id=app_id, name=name, type="js", code=code)
 
         return self.client.utils.Scheduler.CreateEnvTask(
             env_name=self.env_name,
@@ -276,9 +262,7 @@ class IaaS(IaaSJob):
             params=params,
         )
 
-    def restart_nodes(
-        self, node_groups: list[str], lazy: bool = False, delay: int = 10000
-    ):
+    def restart_nodes(self, node_groups: list[str], lazy: bool = False, delay: int = 10000):
         """
         Restart nodes for a list of node groups.
         """
@@ -367,9 +351,7 @@ class IaaS(IaaSJob):
         Uninstall an addon.
         """
         # Check if the addon is already installed
-        if addon := self.get_installed_addon(
-            app_id=app_id, node_group=node_group, search=search
-        ):
+        if addon := self.get_installed_addon(app_id=app_id, node_group=node_group, search=search):
             logger.info(f"Uninstalling addon {app_id}")
 
             return self.client.marketplace.Installation.Uninstall(
@@ -401,9 +383,7 @@ class IaaSNetBox(IaaS):
 
         # For each node group, get the related nodes
         for node_group in node_groups:
-            if "netbox" in node_group.get("node", {}).get("customitem", {}).get(
-                "dockerName"
-            ):
+            if "netbox" in node_group.get("node", {}).get("customitem", {}).get("dockerName"):
                 results.append(node_group)
 
         return results
@@ -413,9 +393,7 @@ class IaaSNetBox(IaaS):
         Loads the plugins from the plugins.yaml file.
         """
         master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
-        plugins_yaml = self.execute_cmd(
-            master_node_id, "cat /etc/netbox/config/plugins.yaml"
-        )[0].get("out", "")
+        plugins_yaml = self.execute_cmd(master_node_id, "cat /etc/netbox/config/plugins.yaml")[0].get("out", "")
         return yaml.safe_load(plugins_yaml) or {}
 
     def dump_plugins(self, plugins):
@@ -433,22 +411,19 @@ class IaaSNetBox(IaaS):
             is_append_mode=False,
         )
 
-    def install_plugin(
-        self, plugin: dict, version, plugin_settings=None, github_token=None
-    ):
+    def install_plugin(self, plugin: dict, version, plugin_settings=None, github_token=None):
         master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
         activate_env = "source /opt/netbox/venv/bin/activate"
 
         # Install the plugin version
         if plugin.get("private"):
-            github_url = plugin.get("github_url")
-            github_url = github_url.replace(
-                "https://github.com", f"git+https://{github_token}@github.com"
-            )
+            # Ensure `git` is installed
+            self.execute_cmd(master_node_id, "apt-get install -y git")
 
-            self.execute_cmd(
-                master_node_id, f"{activate_env} && pip install {github_url}@{version}"
-            )
+            github_url = plugin.get("github_url")
+            github_url = github_url.replace("https://github.com", f"git+https://{github_token}@github.com")
+
+            self.execute_cmd(master_node_id, f"{activate_env} && pip install {github_url}@{version}")
         else:
             self.execute_cmd(
                 master_node_id,
@@ -459,17 +434,14 @@ class IaaSNetBox(IaaS):
         plugins[plugin.get("app_label")] = plugin_settings or {}
         self.dump_plugins(plugins)
 
-        # TODO: Uncomment this after a fix is suggested by Virtuozzo, slack thread: https://omsmsp.slack.com/archives/C05QT7WD71U/p1704140085788849
         # Run collectstatic command
-        # self.execute_cmd(
-        #     node_id=master_node_id,
-        #     command=f"{activate_env} && /opt/netbox/netbox/manage.py collectstatic --no-input",
-        # )
+        self.execute_cmd(
+            node_id=master_node_id,
+            command=f"{activate_env} && /opt/netbox/netbox/manage.py collectstatic --no-input --clear 1>/dev/null",
+        )
 
         return self.restart_nodes(
-            node_groups=[
-                node_group["name"] for node_group in self.get_nb_node_groups()
-            ],
+            node_groups=[node_group["name"] for node_group in self.get_nb_node_groups()],
             lazy=True,
         )
 
@@ -482,9 +454,7 @@ class IaaSNetBox(IaaS):
         self.dump_plugins(plugins)
 
         return self.restart_nodes(
-            node_groups=[
-                node_group["name"] for node_group in self.get_nb_node_groups()
-            ],
+            node_groups=[node_group["name"] for node_group in self.get_nb_node_groups()],
             lazy=True,
         )
 
@@ -493,10 +463,7 @@ class IaaSNetBox(IaaS):
         Get the environment variable for NetBox.
         """
         container_vars = self._get_env_var(NODE_GROUP_CP)
-        return (
-            getattr(get_config(), variable, container_vars.get(variable, None))
-            or default
-        )
+        return getattr(get_config(), variable, container_vars.get(variable, None)) or default
 
     def _get_docker_tags(self):
         """
@@ -505,9 +472,7 @@ class IaaSNetBox(IaaS):
         master_node = self.get_master_node(NODE_GROUP_CP)
         docker = master_node.get("customitem", {})
 
-        response = requests.get(
-            f'https://hub.docker.com/v2/repositories/{docker["dockerName"]}/tags?page_size=1000'
-        )
+        response = requests.get(f'https://hub.docker.com/v2/repositories/{docker["dockerName"]}/tags?page_size=1000')
         response.raise_for_status()
         response = response.json()
 
@@ -532,68 +497,15 @@ class IaaSNetBox(IaaS):
 
         return [tag for tag in docker_tags if tag > current_version]
 
-    def get_patch_upgrades(self):
-        """
-        Get the available patch upgrades for NetBox.
-        """
-        all_upgrades = self._get_upgrades()
-        current_version = Version.parse(settings.VERSION)
-
-        # Filter out only the patch upgrades
-        patch_upgrades = []
-        for upgrade in all_upgrades:
-            if (
-                upgrade.major == current_version.major
-                and upgrade.minor == current_version.minor
-            ):
-                patch_upgrades.append(upgrade)
-
-        return patch_upgrades
-
-    def get_minor_upgrades(self):
-        """
-        Get the available minor upgrades for NetBox.
-        """
-        all_upgrades = self._get_upgrades()
-        current_version = Version.parse(settings.VERSION)
-
-        # Filter out only the minor upgrades
-        minor_upgrades = []
-        for upgrade in all_upgrades:
-            if (
-                upgrade.major == current_version.major
-                and upgrade.minor > current_version.minor
-            ):
-                minor_upgrades.append(upgrade)
-
-        return minor_upgrades
-
-    def get_major_upgrades(self):
-        """
-        Get the available major upgrades for NetBox.
-        """
-        all_upgrades = self._get_upgrades()
-        current_version = Version.parse(settings.VERSION)
-
-        # Filter out only the major upgrades
-        major_upgrades = []
-        for upgrade in all_upgrades:
-            if upgrade.major > current_version.major:
-                major_upgrades.append(upgrade)
-
-        return major_upgrades
-
     def is_upgrade_available(self):
         """
         Check if an upgrade is available for NetBox.
         """
-        return bool(self._get_upgrades())
+        return bool(self.get_upgrades())
 
     def is_db_backup_running(self, app_unique_name):
         # Get current running actions
-        current_actions = self.client.environment.Tracking.GetCurrentActions().get(
-            "array", []
-        )
+        current_actions = self.client.environment.Tracking.GetCurrentActions().get("array", [])
         for action in current_actions:
             action_parameters = action.get("parameters", {})
 
@@ -615,18 +527,30 @@ class IaaSNetBox(IaaS):
 
         return self.execute_action(app_unique_name=app_unique_name, action="backup")
 
+    def upgrade_checks(self, version) -> Tuple[bool, str]:
+        """
+        Run upgrade checks for NetBox.
+        """
+        # Fetch the plugins from the store
+        plugins = utils.get_plugins_list()
+        for plugin_name, plugin in plugins.items():
+            if plugin_name in settings.PLUGINS:
+                if not utils.filter_releases(plugin, version):
+                    return (
+                        False,
+                        f"Plugin {plugin_name} does not have a release for version {version}",
+                    )
+
+        return True, ""
+
     def upgrade(self, version):
         """
         Upgrade NetBox.
         """
         version = f"v{version}"
 
-        if addon := self.get_installed_addon(
-            app_id="db-backup", node_group=NODE_GROUP_SQLDB
-        ):
+        if addon := self.get_installed_addon(app_id="db-backup", node_group=NODE_GROUP_SQLDB):
             self.db_backup(app_unique_name=addon.get("uniqueName"))
-
-        # TODO: Run plugin compatibility checks
 
         # Fetch all node groups
         for node_group in self.get_nb_node_groups():
