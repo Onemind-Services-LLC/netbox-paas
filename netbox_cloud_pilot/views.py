@@ -352,7 +352,7 @@ class NetBoxPluginUpgradesView(PermissionRequiredMixin, GetReturnURLMixin, View)
             "generic/object_edit.html",
             {
                 "object": obj,
-                "form": self.form(instance=obj),
+                "form": form,
             },
         )
 
