@@ -411,7 +411,7 @@ class IaaSNetBox(IaaS):
             is_append_mode=False,
         )
 
-    def install_plugin(self, plugin: dict, version, plugin_settings=None, github_token=None):
+    def install_plugin(self, plugin: dict, version, plugin_settings=None, github_token=None, restart: bool = True):
         master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
         activate_env = "source /opt/netbox/venv/bin/activate"
 
@@ -440,10 +440,13 @@ class IaaSNetBox(IaaS):
             command=f"{activate_env} && /opt/netbox/netbox/manage.py collectstatic --no-input --clear 1>/dev/null",
         )
 
-        return self.restart_nodes(
-            node_groups=[node_group["name"] for node_group in self.get_nb_node_groups()],
-            lazy=True,
-        )
+        if restart:
+            return self.restart_nodes(
+                node_groups=[node_group["name"] for node_group in self.get_nb_node_groups()],
+                lazy=True,
+            )
+
+        return {"result": 0, "message": "Plugin installed"}
 
     def uninstall_plugin(self, plugin: dict):
         """
@@ -543,7 +546,7 @@ class IaaSNetBox(IaaS):
 
         return True, ""
 
-    def upgrade(self, version):
+    def upgrade(self, version, license=None):
         """
         Upgrade NetBox.
         """
@@ -551,6 +554,18 @@ class IaaSNetBox(IaaS):
 
         if addon := self.get_installed_addon(app_id="db-backup", node_group=NODE_GROUP_SQLDB):
             self.db_backup(app_unique_name=addon.get("uniqueName"))
+
+        # Upgrade all plugins to the latest compatible version first without restarting the nodes
+        for plugin_name, plugin in utils.get_plugins_list().items():
+            if plugin.get('app_label') in settings.PLUGINS:
+                plugin_version = utils.filter_releases(plugin, version)[0]
+                self.install_plugin(
+                    plugin=plugin,
+                    version=plugin_version,
+                    plugin_settings=settings.PLUGINS_CONFIG.get(plugin.get('app_label'), {}),
+                    github_token=license,
+                    restart=False,
+                )
 
         # Fetch all node groups
         for node_group in self.get_nb_node_groups():
