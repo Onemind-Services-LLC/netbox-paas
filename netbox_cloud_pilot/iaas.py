@@ -488,7 +488,7 @@ class IaaSNetBox(IaaS):
 
         return tags
 
-    def _get_upgrades(self):
+    def get_upgrades(self):
         """
         Get the available upgrades for NetBox.
         """
