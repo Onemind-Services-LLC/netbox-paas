@@ -343,6 +343,7 @@ class NetBoxPluginUpgradesView(PermissionRequiredMixin, GetReturnURLMixin, View)
                 obj.get_env().upgrade,
                 request,
                 version=form.cleaned_data["version"],
+                license=obj.license,
             )
             messages.success(request, utils.job_msg(job))
             return redirect("core:job", pk=job.pk)
