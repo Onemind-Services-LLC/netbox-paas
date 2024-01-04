@@ -367,6 +367,5 @@ class ConfirmationForm(_ConfirmationForm):
     """
     A generic confirmation form. The form is not valid unless the `confirm` field is checked.
     """
-    name = forms.CharField(
-        widget=forms.HiddenInput()
-    )
+
+    name = forms.CharField(widget=forms.HiddenInput())
