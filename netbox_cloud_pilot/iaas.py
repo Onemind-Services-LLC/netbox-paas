@@ -550,7 +550,6 @@ class IaaSNetBox(IaaS):
         """
         Upgrade NetBox.
         """
-        version = f"v{version}"
 
         if addon := self.get_installed_addon(app_id="db-backup", node_group=NODE_GROUP_SQLDB):
             self.db_backup(app_unique_name=addon.get("uniqueName"))
@@ -604,7 +603,7 @@ class IaaSNetBox(IaaS):
                 code=script_code,
                 description=f"Upgrade {node_group_name} nodes",
                 params={
-                    "tag": version,
+                    "tag": f"v{version}",
                     "envName": self.env_name,
                     "nodeGroup": node_group_name,
                 },
