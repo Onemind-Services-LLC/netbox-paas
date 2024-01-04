@@ -431,14 +431,13 @@ class NetBoxPluginUninstallView(generic.ObjectDeleteView):
             messages.error(request, "Plugin not found.")
             return redirect("plugins:netbox_cloud_pilot:netboxplugin_list")
 
-        form = ConfirmationForm(initial=request.GET)
+        form = forms.ConfirmationForm(initial=request.GET)
 
         return render(
             request,
             self.template_name,
             {
                 "object": obj,
-                "plugin": plugin,
                 "form": form,
                 "return_url": self.get_return_url(request, obj),
                 **self.get_extra_context(request, obj),
@@ -447,11 +446,10 @@ class NetBoxPluginUninstallView(generic.ObjectDeleteView):
 
     def post(self, request, *args, **kwargs):
         obj = self.get_object(**kwargs)
-        form = ConfirmationForm(request.POST)
-
-        plugin = utils.get_plugins_list().get(request.POST.get("name"))
+        form = forms.ConfirmationForm(request.POST)
 
         if form.is_valid():
+            plugin = utils.get_plugins_list().get(form.cleaned_data["name"])
             job = obj.enqueue(obj.get_env().uninstall_plugin, request, plugin=plugin)
 
             messages.success(request, utils.job_msg(job))
@@ -462,7 +460,6 @@ class NetBoxPluginUninstallView(generic.ObjectDeleteView):
             self.template_name,
             {
                 "object": obj,
-                "plugin": plugin,
                 "form": form,
                 "return_url": self.get_return_url(request, obj),
                 **self.get_extra_context(request, obj),

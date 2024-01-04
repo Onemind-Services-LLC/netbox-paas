@@ -4,7 +4,7 @@ from django.conf import settings
 from django.forms import ValidationError
 
 from netbox.forms import NetBoxModelForm
-from utilities.forms import BootstrapMixin
+from utilities.forms import BootstrapMixin, ConfirmationForm as _ConfirmationForm
 from utilities.forms.fields import CommentField
 from .constants import NETBOX_SETTINGS, NODE_GROUP_SQLDB
 from .models import *
@@ -361,3 +361,12 @@ class NetBoxUpgradeForm(BootstrapMixin, forms.Form):
         upgrade_check, error = env.upgrade_checks(self.cleaned_data.get("version"))
         if not upgrade_check:
             raise ValidationError({"version": error})
+
+
+class ConfirmationForm(_ConfirmationForm):
+    """
+    A generic confirmation form. The form is not valid unless the `confirm` field is checked.
+    """
+    name = forms.CharField(
+        widget=forms.HiddenInput()
+    )
