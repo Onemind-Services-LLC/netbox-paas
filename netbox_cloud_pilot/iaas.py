@@ -197,17 +197,11 @@ class IaaS(IaaSJob):
         """
         Get the installed addon for a node group.
         """
-        logger.debug(
-            f"Checking if addon ({app_id}) is installed for node group {node_group}"
-        )
+        logger.debug(f"Checking if addon ({app_id}) is installed for node group {node_group}")
         addons = self.get_addons(node_group=node_group, search=search)
 
         return next(
-            (
-                addon
-                for addon in addons
-                if addon["app_id"] == app_id and addon.get("isInstalled", False)
-            ),
+            (addon for addon in addons if addon["app_id"] == app_id and addon.get("isInstalled", False)),
             None,
         )
 
@@ -253,16 +247,12 @@ class IaaS(IaaSJob):
             for script in scripts:
                 if script.get("name") == name:
                     logger.debug(f"Deleting existing script {name}")
-                    self.client.development.Scripting.DeleteScript(
-                        app_id=app_id, name=name
-                    )
+                    self.client.development.Scripting.DeleteScript(app_id=app_id, name=name)
                     continue
         except JelasticApiError as e:
             logger.error(e)
 
-        self.client.development.Scripting.CreateScript(
-            app_id=app_id, name=name, type="js", code=code
-        )
+        self.client.development.Scripting.CreateScript(app_id=app_id, name=name, type="js", code=code)
 
         return self.client.utils.Scheduler.CreateEnvTask(
             env_name=self.env_name,
@@ -272,9 +262,7 @@ class IaaS(IaaSJob):
             params=params,
         )
 
-    def restart_nodes(
-        self, node_groups: list[str], lazy: bool = False, delay: int = 10000
-    ):
+    def restart_nodes(self, node_groups: list[str], lazy: bool = False, delay: int = 10000):
         """
         Restart nodes for a list of node groups.
         """
@@ -363,9 +351,7 @@ class IaaS(IaaSJob):
         Uninstall an addon.
         """
         # Check if the addon is already installed
-        if addon := self.get_installed_addon(
-            app_id=app_id, node_group=node_group, search=search
-        ):
+        if addon := self.get_installed_addon(app_id=app_id, node_group=node_group, search=search):
             logger.info(f"Uninstalling addon {app_id}")
 
             return self.client.marketplace.Installation.Uninstall(
@@ -397,9 +383,7 @@ class IaaSNetBox(IaaS):
 
         # For each node group, get the related nodes
         for node_group in node_groups:
-            if "netbox" in node_group.get("node", {}).get("customitem", {}).get(
-                "dockerName"
-            ):
+            if "netbox" in node_group.get("node", {}).get("customitem", {}).get("dockerName"):
                 results.append(node_group)
 
         return results
@@ -409,9 +393,7 @@ class IaaSNetBox(IaaS):
         Loads the plugins from the plugins.yaml file.
         """
         master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
-        plugins_yaml = self.execute_cmd(
-            master_node_id, "cat /etc/netbox/config/plugins.yaml"
-        )[0].get("out", "")
+        plugins_yaml = self.execute_cmd(master_node_id, "cat /etc/netbox/config/plugins.yaml")[0].get("out", "")
         return yaml.safe_load(plugins_yaml) or {}
 
     def dump_plugins(self, plugins):
@@ -429,9 +411,7 @@ class IaaSNetBox(IaaS):
             is_append_mode=False,
         )
 
-    def install_plugin(
-        self, plugin: dict, version, plugin_settings=None, github_token=None
-    ):
+    def install_plugin(self, plugin: dict, version, plugin_settings=None, github_token=None):
         master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
         activate_env = "source /opt/netbox/venv/bin/activate"
 
@@ -441,13 +421,9 @@ class IaaSNetBox(IaaS):
             self.execute_cmd(master_node_id, "apt-get install -y git")
 
             github_url = plugin.get("github_url")
-            github_url = github_url.replace(
-                "https://github.com", f"git+https://{github_token}@github.com"
-            )
+            github_url = github_url.replace("https://github.com", f"git+https://{github_token}@github.com")
 
-            self.execute_cmd(
-                master_node_id, f"{activate_env} && pip install {github_url}@{version}"
-            )
+            self.execute_cmd(master_node_id, f"{activate_env} && pip install {github_url}@{version}")
         else:
             self.execute_cmd(
                 master_node_id,
@@ -465,9 +441,7 @@ class IaaSNetBox(IaaS):
         )
 
         return self.restart_nodes(
-            node_groups=[
-                node_group["name"] for node_group in self.get_nb_node_groups()
-            ],
+            node_groups=[node_group["name"] for node_group in self.get_nb_node_groups()],
             lazy=True,
         )
 
@@ -480,9 +454,7 @@ class IaaSNetBox(IaaS):
         self.dump_plugins(plugins)
 
         return self.restart_nodes(
-            node_groups=[
-                node_group["name"] for node_group in self.get_nb_node_groups()
-            ],
+            node_groups=[node_group["name"] for node_group in self.get_nb_node_groups()],
             lazy=True,
         )
 
@@ -491,10 +463,7 @@ class IaaSNetBox(IaaS):
         Get the environment variable for NetBox.
         """
         container_vars = self._get_env_var(NODE_GROUP_CP)
-        return (
-            getattr(get_config(), variable, container_vars.get(variable, None))
-            or default
-        )
+        return getattr(get_config(), variable, container_vars.get(variable, None)) or default
 
     def _get_docker_tags(self):
         """
@@ -503,9 +472,7 @@ class IaaSNetBox(IaaS):
         master_node = self.get_master_node(NODE_GROUP_CP)
         docker = master_node.get("customitem", {})
 
-        response = requests.get(
-            f'https://hub.docker.com/v2/repositories/{docker["dockerName"]}/tags?page_size=1000'
-        )
+        response = requests.get(f'https://hub.docker.com/v2/repositories/{docker["dockerName"]}/tags?page_size=1000')
         response.raise_for_status()
         response = response.json()
 
@@ -538,9 +505,7 @@ class IaaSNetBox(IaaS):
 
     def is_db_backup_running(self, app_unique_name):
         # Get current running actions
-        current_actions = self.client.environment.Tracking.GetCurrentActions().get(
-            "array", []
-        )
+        current_actions = self.client.environment.Tracking.GetCurrentActions().get("array", [])
         for action in current_actions:
             action_parameters = action.get("parameters", {})
 
@@ -584,9 +549,7 @@ class IaaSNetBox(IaaS):
         """
         version = f"v{version}"
 
-        if addon := self.get_installed_addon(
-            app_id="db-backup", node_group=NODE_GROUP_SQLDB
-        ):
+        if addon := self.get_installed_addon(app_id="db-backup", node_group=NODE_GROUP_SQLDB):
             self.db_backup(app_unique_name=addon.get("uniqueName"))
 
         # Fetch all node groups
