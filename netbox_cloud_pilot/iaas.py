@@ -534,7 +534,7 @@ class IaaSNetBox(IaaS):
         # Fetch the plugins from the store
         plugins = utils.get_plugins_list()
         for plugin_name, plugin in plugins.items():
-            if plugin_name in settings.PLUGINS:
+            if plugin.get("app_label") in settings.PLUGINS:
                 if not utils.filter_releases(plugin, version):
                     return (
                         False,
