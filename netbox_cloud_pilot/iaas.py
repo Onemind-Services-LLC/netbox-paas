@@ -14,7 +14,7 @@ from core.choices import JobStatusChoices
 from core.models import Job
 from netbox.config import get_config
 from . import utils
-from .constants import JELASTIC_API, NODE_GROUP_CP, NODE_GROUP_SQLDB
+from .constants import JELASTIC_API, NODE_GROUP_CP, NODE_GROUP_SQLDB, DISABLED_PLUGINS_FILE_NAME, PLUGINS_FILE_NAME
 
 logger = logging.getLogger("netbox_cloud_pilot")
 
@@ -388,15 +388,20 @@ class IaaSNetBox(IaaS):
 
         return results
 
-    def load_plugins(self):
+    def load_plugins(self, file_name="plugins.yaml"):
         """
         Loads the plugins from the plugins.yaml file.
         """
         master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
-        plugins_yaml = self.execute_cmd(master_node_id, "cat /etc/netbox/config/plugins.yaml")[0].get("out", "")
+
+        try:
+            plugins_yaml = self.execute_cmd(master_node_id, f"cat /etc/netbox/config/{file_name}")[0].get("out", "")
+        except JelasticApiError:
+            plugins_yaml = ""
+
         return yaml.safe_load(plugins_yaml) or {}
 
-    def dump_plugins(self, plugins):
+    def dump_plugins(self, plugins, file_name="plugins.yaml"):
         """
         Dumps the plugins to the plugins.yaml file.
         """
@@ -405,7 +410,7 @@ class IaaSNetBox(IaaS):
 
         self.client.environment.File.Write(
             env_name=self.env_name,
-            path="/etc/netbox/config/plugins.yaml",
+            path=f"/etc/netbox/config/{file_name}",
             body=plugins_yaml,
             node_id=master_node_id,
             is_append_mode=False,
@@ -456,6 +461,42 @@ class IaaSNetBox(IaaS):
         plugins.pop(plugin.get("app_label"))
         self.dump_plugins(plugins)
 
+        return self.restart_nodes(
+            node_groups=[node_group["name"] for node_group in self.get_nb_node_groups()],
+            lazy=True,
+        )
+
+    def _enable_disable_plugin(self, plugin: dict, source_file: str, dest_file: str):
+        """
+        Move a plugin from one file (source) to another (destination).
+        """
+        # Load source and destination plugin lists
+        source_plugins = self.load_plugins(file_name=source_file)
+        dest_plugins = self.load_plugins(file_name=dest_file)
+
+        app_label = plugin.get("app_label")
+        if app_label in source_plugins:
+            # Move the plugin
+            dest_plugins[app_label] = source_plugins.pop(app_label)
+            # Update the files
+            self.dump_plugins(source_plugins, file_name=source_file)
+            self.dump_plugins(dest_plugins, file_name=dest_file)
+
+    def disable_plugin(self, plugin: dict):
+        """
+        Disable a plugin for NetBox.
+        """
+        self._enable_disable_plugin(plugin, PLUGINS_FILE_NAME, DISABLED_PLUGINS_FILE_NAME)
+        return self.restart_nodes(
+            node_groups=[node_group["name"] for node_group in self.get_nb_node_groups()],
+            lazy=True,
+        )
+
+    def enable_plugin(self, plugin: dict):
+        """
+        Enable a plugin for NetBox.
+        """
+        self._enable_disable_plugin(plugin, DISABLED_PLUGINS_FILE_NAME, PLUGINS_FILE_NAME)
         return self.restart_nodes(
             node_groups=[node_group["name"] for node_group in self.get_nb_node_groups()],
             lazy=True,

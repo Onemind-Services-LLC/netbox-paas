@@ -10,7 +10,6 @@ from django.urls import reverse
 from django.views.generic import View
 
 from netbox.views import generic
-from utilities.forms import ConfirmationForm
 from utilities.utils import normalize_querydict
 from utilities.views import register_model_view, GetReturnURLMixin
 from . import constants, forms, models, tables, utils
@@ -270,6 +269,12 @@ class NetBoxPluginListView(View):
             installed_plugins = settings.PLUGINS
             installed_plugins = [metadata(plugin).get("Name") for plugin in installed_plugins]
 
+            # Get the list of disabled plugins from NetBox
+            disabled_plugins = [
+                metadata(plugin).get("Name")
+                for plugin in list(nc.get_env().load_plugins(file_name=constants.DISABLED_PLUGINS_FILE_NAME).keys())
+            ]
+
             plugins = utils.get_plugins_list()
             for plugin_name, _ in plugins.items():
                 if plugin_name in installed_plugins:
@@ -278,6 +283,10 @@ class NetBoxPluginListView(View):
                             "installed": True,
                             "current_version": metadata(plugin_name).get("Version"),
                         }
+                    )
+                if plugin_name in disabled_plugins:
+                    plugins[plugin_name].update(
+                        {"installed": True, "disabled": True, "current_version": metadata(plugin_name).get("Version")}
                     )
 
             # Divide the plugins into two lists: installed and not installed
@@ -452,6 +461,104 @@ class NetBoxPluginUninstallView(generic.ObjectDeleteView):
         if form.is_valid():
             plugin = utils.get_plugins_list().get(form.cleaned_data["name"])
             job = obj.enqueue(obj.get_env().uninstall_plugin, request, plugin=plugin)
+
+            messages.success(request, utils.job_msg(job))
+            return redirect("core:job", pk=job.pk)
+
+        return render(
+            request,
+            self.template_name,
+            {
+                "object": obj,
+                "form": form,
+                "return_url": self.get_return_url(request, obj),
+                **self.get_extra_context(request, obj),
+            },
+        )
+
+
+@register_model_view(models.NetBoxConfiguration, "plugin_enable", path="plugin-enable")
+class NetBoxPluginEnableView(generic.ObjectDeleteView):
+    queryset = models.NetBoxConfiguration.objects.all()
+    template_name = "netbox_cloud_pilot/plugin_enable.html"
+
+    def get(self, request, *args, **kwargs):
+        obj = self.get_object(**kwargs)
+        plugin = utils.get_plugins_list().get(request.GET.get("name"))
+
+        if plugin is None:
+            messages.error(request, "Plugin not found.")
+            return redirect("plugins:netbox_cloud_pilot:netboxplugin_list")
+
+        form = forms.ConfirmationForm(initial=request.GET)
+
+        return render(
+            request,
+            self.template_name,
+            {
+                "object": obj,
+                "form": form,
+                "return_url": self.get_return_url(request, obj),
+                **self.get_extra_context(request, obj),
+            },
+        )
+
+    def post(self, request, *args, **kwargs):
+        obj = self.get_object(**kwargs)
+        form = forms.ConfirmationForm(request.POST)
+
+        if form.is_valid():
+            plugin = utils.get_plugins_list().get(form.cleaned_data["name"])
+            job = obj.enqueue(obj.get_env().enable_plugin, request, plugin=plugin)
+
+            messages.success(request, utils.job_msg(job))
+            return redirect("core:job", pk=job.pk)
+
+        return render(
+            request,
+            self.template_name,
+            {
+                "object": obj,
+                "form": form,
+                "return_url": self.get_return_url(request, obj),
+                **self.get_extra_context(request, obj),
+            },
+        )
+
+
+@register_model_view(models.NetBoxConfiguration, "plugin_disable", path="plugin-disable")
+class NetBoxPluginDisableView(generic.ObjectDeleteView):
+    queryset = models.NetBoxConfiguration.objects.all()
+    template_name = "netbox_cloud_pilot/plugin_disable.html"
+
+    def get(self, request, *args, **kwargs):
+        obj = self.get_object(**kwargs)
+        plugin = utils.get_plugins_list().get(request.GET.get("name"))
+
+        if plugin is None:
+            messages.error(request, "Plugin not found.")
+            return redirect("plugins:netbox_cloud_pilot:netboxplugin_list")
+
+        form = forms.ConfirmationForm(initial=request.GET)
+
+        return render(
+            request,
+            self.template_name,
+            {
+                "object": obj,
+                "form": form,
+                "return_url": self.get_return_url(request, obj),
+                **self.get_extra_context(request, obj),
+            },
+        )
+
+    def post(self, request, *args, **kwargs):
+        obj = self.get_object(**kwargs)
+        form = forms.ConfirmationForm(request.POST)
+
+        if form.is_valid():
+            plugin = utils.get_plugins_list().get(form.cleaned_data["name"])
+            job = obj.enqueue(obj.get_env().disable_plugin, request, plugin=plugin)
 
             messages.success(request, utils.job_msg(job))
             return redirect("core:job", pk=job.pk)

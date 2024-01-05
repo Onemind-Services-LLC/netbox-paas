@@ -1,0 +1,36 @@
+{% extends 'base/layout.html' %}
+{% load helpers %}
+{% load form_helpers %}
+
+{% block title %}Disable {{ plugin.name }}?{% endblock %}
+
+{% block header %}{% endblock %}
+
+{% block content %}
+    <div class="modal" tabindex="-1" style="display: block; position: static">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form action="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_plugin_disable' pk=object.pk %}" method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="plugin_name" value="{{ plugin.plugin_id }}">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirm Disable</h5>
+                    </div>
+                    <div class="modal-body">
+                        <p>Are you sure you want to <strong class="text-danger">disable</strong> <strong>{{ plugin.name }}</strong>?</p>
+                        {% render_form form %}
+                    </div>
+                    <div class="modal-footer">
+                        {% if return_url %}
+                            <a href="{{ return_url }}" class="btn btn-outline-secondary">Cancel</a>
+                        {% else %}
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel
+                            </button>
+                        {% endif %}
+                        <button type="submit" class="btn btn-danger">Disable</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endblock %}
