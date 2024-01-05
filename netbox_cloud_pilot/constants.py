@@ -9,6 +9,9 @@ NETBOX_JPS_REPO = "https://raw.githubusercontent.com/Onemind-Services-LLC/netbox
 NODE_GROUP_CP = "cp"
 NODE_GROUP_SQLDB = "sqldb"
 
+PLUGINS_FILE_NAME = "plugins.yaml"
+DISABLED_PLUGINS_FILE_NAME = "disabled_plugins.yaml"
+
 SECTION_REQUIRED = None
 SECTION_SYSTEM = "System"
 SECTION_SECURITY = "Security"
