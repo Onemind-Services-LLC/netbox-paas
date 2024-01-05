@@ -6,7 +6,7 @@ from django.forms import ValidationError
 from netbox.forms import NetBoxModelForm
 from utilities.forms import BootstrapMixin, ConfirmationForm as _ConfirmationForm
 from utilities.forms.fields import CommentField
-from .constants import NETBOX_SETTINGS, NODE_GROUP_SQLDB
+from .constants import NETBOX_SETTINGS, NODE_GROUP_SQLDB, DISABLED_PLUGINS_FILE_NAME
 from .models import *
 from .utils import *
 
@@ -296,7 +296,15 @@ class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
 
             plugin_name = plugin.get("app_label")
             self.fields["version"].initial = metadata(plugin_name).get("Version")
-            self.fields["configuration"].initial = settings.PLUGINS_CONFIG[plugin_name]
+
+            if settings.PLUGINS_CONFIG.get(plugin_name):
+                self.fields["configuration"].initial = settings.PLUGINS_CONFIG[plugin_name]
+            elif (
+                disabled_plugins := NetBoxConfiguration.objects.first()
+                .get_env()
+                .load_plugins(DISABLED_PLUGINS_FILE_NAME)
+            ):
+                self.fields["configuration"].initial = disabled_plugins.get(plugin_name, {})
 
     def clean(self):
         plugins = get_plugins_list()

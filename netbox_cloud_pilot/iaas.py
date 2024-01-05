@@ -436,6 +436,12 @@ class IaaSNetBox(IaaS):
             )
 
         plugins = self.load_plugins()
+        disabled_plugins = self.load_plugins(file_name=DISABLED_PLUGINS_FILE_NAME)
+
+        if plugin.get("app_label") in disabled_plugins:
+            disabled_plugins.pop(plugin.get("app_label"))
+            self.dump_plugins(disabled_plugins, file_name=DISABLED_PLUGINS_FILE_NAME)
+
         plugins[plugin.get("app_label")] = plugin_settings or {}
         self.dump_plugins(plugins)
 
@@ -457,9 +463,16 @@ class IaaSNetBox(IaaS):
         """
         Uninstall an addon for NetBox.
         """
+        # Remove the plugin from the plugins.yaml or disabled_plugins.yaml file
         plugins = self.load_plugins()
-        plugins.pop(plugin.get("app_label"))
-        self.dump_plugins(plugins)
+        disabled_plugins = self.load_plugins(file_name=DISABLED_PLUGINS_FILE_NAME)
+
+        if plugin.get("app_label") in plugins:
+            plugins.pop(plugin.get("app_label"))
+            self.dump_plugins(plugins)
+        elif plugin.get("app_label") in disabled_plugins:
+            disabled_plugins.pop(plugin.get("app_label"))
+            self.dump_plugins(disabled_plugins, file_name=DISABLED_PLUGINS_FILE_NAME)
 
         # Uninstall the plugin from the virtual environment
         master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
