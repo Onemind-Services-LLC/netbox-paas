@@ -94,6 +94,9 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
             except JelasticApiError as e:
                 raise ValidationError(e)
 
+        if self.license:
+            if not self.license.startswith("ghp_") and not self.license.startswith("github_pat_"):
+                raise ValidationError({"license": "Invalid license key"})
 
     @lru_cache(maxsize=2)
     def iaas(self, env_name, auto_init=True):
