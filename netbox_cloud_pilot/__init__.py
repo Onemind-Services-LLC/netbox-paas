@@ -13,8 +13,8 @@ class NetBoxCloudPilot(PluginConfig):
     author = metadata.get("Author")
     author_email = metadata.get("Author-email")
     base_url = "cloud-pilot"
-    min_version = "3.6.0"
-    max_version = "3.6.99"
+    min_version = "3.5.0"
+    max_version = "3.5.99"
 
 
 config = NetBoxCloudPilot
