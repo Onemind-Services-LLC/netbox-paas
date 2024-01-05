@@ -461,6 +461,14 @@ class IaaSNetBox(IaaS):
         plugins.pop(plugin.get("app_label"))
         self.dump_plugins(plugins)
 
+        # Uninstall the plugin from the virtual environment
+        master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
+        activate_env = "source /opt/netbox/venv/bin/activate"
+        self.execute_cmd(
+            master_node_id,
+            f'{activate_env} && pip uninstall {plugin.get("name")} -y',
+        )
+
         return self.restart_nodes(
             node_groups=[node_group["name"] for node_group in self.get_nb_node_groups()],
             lazy=True,
