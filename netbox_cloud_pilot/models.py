@@ -54,7 +54,7 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
 
     license = models.CharField(
         max_length=255,
-        validators=[MinLengthValidator(40), MaxLengthValidator(40)],
+        validators=[MinLengthValidator(40), MaxLengthValidator(93)],
         blank=True,
         null=True,
     )
