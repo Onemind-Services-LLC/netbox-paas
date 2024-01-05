@@ -95,7 +95,9 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
                 raise ValidationError(e)
 
         if self.license:
-            if not self.license.startswith("ghp_") or not self.license.startswith("github_pat_"):
+            if not self.license.startswith("ghp_"):
+                raise ValidationError({"license": "Invalid license key"})
+            elif not self.license.startswith("github_pat_"):
                 raise ValidationError({"license": "Invalid license key"})
 
     @lru_cache(maxsize=2)
