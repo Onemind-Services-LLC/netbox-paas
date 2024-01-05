@@ -416,7 +416,15 @@ class IaaSNetBox(IaaS):
             is_append_mode=False,
         )
 
-    def install_plugin(self, plugin: dict, version, plugin_settings=None, github_token=None, restart: bool = True):
+    def install_plugin(
+        self,
+        plugin: dict,
+        version,
+        plugin_settings=None,
+        github_token=None,
+        restart: bool = True,
+        collectstatic: bool = True,
+    ):
         master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
         activate_env = "source /opt/netbox/venv/bin/activate"
 
@@ -445,11 +453,12 @@ class IaaSNetBox(IaaS):
         plugins[plugin.get("app_label")] = plugin_settings or {}
         self.dump_plugins(plugins)
 
-        # Run collectstatic command
-        self.execute_cmd(
-            node_id=master_node_id,
-            command=f"{activate_env} && /opt/netbox/netbox/manage.py collectstatic --no-input --clear 1>/dev/null",
-        )
+        if collectstatic:
+            # Run collectstatic command
+            self.execute_cmd(
+                node_id=master_node_id,
+                command=f"{activate_env} && /opt/netbox/netbox/manage.py collectstatic --no-input --clear 1>/dev/null",
+            )
 
         if restart:
             return self.restart_nodes(
@@ -626,6 +635,7 @@ class IaaSNetBox(IaaS):
                     plugin_settings=settings.PLUGINS_CONFIG.get(plugin.get('app_label'), {}),
                     github_token=license,
                     restart=False,
+                    collectstatic=False, # Do not run during upgrade as it may crash due to version incompatibility
                 )
 
         # Fetch all node groups
@@ -657,6 +667,8 @@ class IaaSNetBox(IaaS):
 
             r = c.RedeployContainersByGroup({ envName: e, session: s, nodeGroup: nodeGroup, tag: tag, useExistingVolumes: true });
             if (r.result != 0) return r;
+            
+            c.ExecCmdByGroup({ envName: e, session: s, nodeGroup: 'cp', commandList: [{ command: 'source /opt/netbox/venv/bin/activate && /opt/netbox/netbox/manage.py collectstatic --no-input --clear 1>/dev/null' }] });
             return { result: 0, message: 'Upgraded ' + nodeGroup}
             """
 
