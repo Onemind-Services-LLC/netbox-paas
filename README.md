@@ -24,6 +24,7 @@ NetBox Cloud Pilot integrates several key features:
 | NetBox Version | Plugin Version |
 |----------------|----------------|
 | v3.5.x         | v0.0.x         |
+| v3.6.x         | v0.1.x         |
 
 # Installation
 
