@@ -286,6 +286,7 @@ class IaaS(IaaSJob):
                     code=script_code,
                     description=f"Restart {node_group} nodes",
                     params={"envName": self.env_name, "nodeGroup": node_group},
+                    delay=delay,
                 )
                 results.append(task_result)
 
