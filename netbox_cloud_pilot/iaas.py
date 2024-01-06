@@ -637,7 +637,7 @@ class IaaSNetBox(IaaS):
                     plugin_settings=settings.PLUGINS_CONFIG.get(plugin.get('app_label'), {}),
                     github_token=license,
                     restart=False,
-                    collectstatic=False, # Do not run during upgrade as it may crash due to version incompatibility
+                    collectstatic=False,  # Do not run during upgrade as it may crash due to version incompatibility
                 )
 
         # Fetch all node groups
@@ -690,13 +690,13 @@ class IaaSNetBox(IaaS):
         var c = jelastic.environment.control, e = envName, s = session, r, resp;
         resp = c.GetEnvInfo(e, s);
         if (resp.result != 0) return resp;
-        
+
         // Wait for the environment to be running before running collectstatic
         var isRunning = false, attempts = 0, maxAttempts = 30;
         while (!isRunning && attempts < maxAttempts) {
           envInfo = c.GetEnvInfo(e, s);
           if (envInfo.result != 0) return envInfo;
-          
+
           if (envInfo.env.status == 1) {
             isRunning = true;
           } else {
@@ -704,11 +704,11 @@ class IaaSNetBox(IaaS):
             java.lang.Thread.sleep(30000);
           }
         }
-        
+
         if (!isRunning) {
           return { result: 1, message: 'Environment is not running' };
         }
-        
+
         // Run collectstatic command
         r = c.ExecCmdById({ envName: e, session: s, nodeId: nodeId, commandList: [{ command: 'source /opt/netbox/venv/bin/activate && /opt/netbox/netbox/manage.py collectstatic --no-input --clear 1>/dev/null' }] });
         if (r.result != 0) return r;
