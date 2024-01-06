@@ -232,7 +232,7 @@ class IaaS(IaaSJob):
             env_name=self.env_name, node_group=node_group, vars=env_vars
         )
 
-    def run_script(self, name, code, description=None, params=None):
+    def run_script(self, name, code, description=None, params=None, delay=10000):
         """
         Run a script.
         """
@@ -257,7 +257,7 @@ class IaaS(IaaSJob):
         return self.client.utils.Scheduler.CreateEnvTask(
             env_name=self.env_name,
             script=name,
-            trigger={"once_delay": 10000},
+            trigger={"once_delay": delay},
             description=description,
             params=params,
         )
@@ -621,6 +621,7 @@ class IaaSNetBox(IaaS):
         """
         Upgrade NetBox.
         """
+        master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
 
         if addon := self.get_installed_addon(app_id="db-backup", node_group=NODE_GROUP_SQLDB):
             self.db_backup(app_unique_name=addon.get("uniqueName"))
@@ -667,8 +668,6 @@ class IaaSNetBox(IaaS):
 
             r = c.RedeployContainersByGroup({ envName: e, session: s, nodeGroup: nodeGroup, tag: tag, useExistingVolumes: true });
             if (r.result != 0) return r;
-            
-            c.ExecCmdByGroup({ envName: e, session: s, nodeGroup: 'cp', commandList: [{ command: 'source /opt/netbox/venv/bin/activate && /opt/netbox/netbox/manage.py collectstatic --no-input --clear 1>/dev/null' }] });
             return { result: 0, message: 'Upgraded ' + nodeGroup}
             """
 
@@ -681,6 +680,47 @@ class IaaSNetBox(IaaS):
                     "envName": self.env_name,
                     "nodeGroup": node_group_name,
                 },
+                delay=20000 if node_group_name == NODE_GROUP_CP else 60000,
             )
 
-        self.clear_cache()
+        # Create script to run collectstatic after upgrade
+        script_name = f"collectstatic-cp-ncp"
+        script_code = """
+        var c = jelastic.environment.control, e = envName, s = session, r, resp;
+        resp = c.GetEnvInfo(e, s);
+        if (resp.result != 0) return resp;
+        
+        // Wait for the environment to be running before running collectstatic
+        var isRunning = false, attempts = 0, maxAttempts = 30;
+        while (!isRunning && attempts < maxAttempts) {
+          envInfo = c.GetEnvInfo(e, s);
+          if (envInfo.result != 0) return envInfo;
+          
+          if (envInfo.env.status == 1) {
+            isRunning = true;
+          } else {
+            attempts++;
+            java.lang.Thread.sleep(30000);
+          }
+        }
+        
+        if (!isRunning) {
+          return { result: 1, message: 'Environment is not running' };
+        }
+        
+        // Run collectstatic command
+        r = c.ExecCmdById({ envName: e, session: s, nodeId: nodeId, commandList: [{ command: 'source /opt/netbox/venv/bin/activate && /opt/netbox/netbox/manage.py collectstatic --no-input --clear 1>/dev/null' }] });
+        if (r.result != 0) return r;
+        return { result: 0, message: 'Ran collectstatic'}
+        """
+
+        self.run_script(
+            name=script_name,
+            code=script_code,
+            description=f"Run collectstatic after upgrade",
+            params={
+                "envName": self.env_name,
+                "nodeId": master_node_id,
+            },
+            delay=12000,
+        )
