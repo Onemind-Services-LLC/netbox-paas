@@ -1,3 +1,4 @@
+import os
 from importlib.metadata import metadata
 
 from extras.plugins import PluginConfig
@@ -15,6 +16,13 @@ class NetBoxCloudPilot(PluginConfig):
     base_url = "cloud-pilot"
     min_version = "3.5.0"
     max_version = "3.5.99"
+
+    def ready(self):
+        super().ready()
+
+        # Ensure ENV_NAME is set in the environment
+        if not os.environ.get("ENV_NAME"):
+            raise Exception("ENV_NAME is not set in the environment")
 
 
 config = NetBoxCloudPilot
