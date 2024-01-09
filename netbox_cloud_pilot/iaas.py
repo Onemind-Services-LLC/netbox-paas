@@ -123,7 +123,10 @@ class IaaS(IaaSJob):
         if node_group:
             nodes = [node for node in nodes if node["nodeGroup"] == node_group]
         if is_master:
-            nodes = [node for node in nodes if node["ismaster"]][0]
+            try:
+                nodes = [node for node in nodes if node["ismaster"]][0]
+            except IndexError:
+                nodes = {}
         return nodes
 
     def get_node_groups(self):
@@ -546,6 +549,9 @@ class IaaSNetBox(IaaS):
         """
         master_node = self.get_master_node(NODE_GROUP_CP)
         docker = master_node.get("customitem", {})
+
+        if not docker:
+            return []
 
         response = requests.get(f'https://hub.docker.com/v2/repositories/{docker["dockerName"]}/tags?page_size=1000')
         response.raise_for_status()
