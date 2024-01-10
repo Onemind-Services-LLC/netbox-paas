@@ -8,6 +8,8 @@ import yaml
 from django.conf import settings
 from jelastic import Jelastic
 from jelastic.api.exceptions import JelasticApiError
+from requirements import parse as requirements_parse
+from requirements.parser import Requirement
 from semver.version import Version
 
 from core.choices import JobStatusChoices
@@ -22,6 +24,72 @@ __all__ = (
     "IaaS",
     "IaaSNetBox",
 )
+
+
+class RequirementsParser:
+    """
+    This class is used to parse the requirements.txt file.
+    """
+
+    def __init__(self, req_str: str):
+        self.requirements = self.loads(req_str)
+
+    @staticmethod
+    def loads(req_str: str) -> list[Requirement]:
+        """
+        Parse the requirements.txt file.
+        """
+        return list(requirements_parse(req_str))
+
+    def _exists(self, req: Requirement) -> bool:
+        """
+        Check if a requirement exists.
+        """
+        for r in self.requirements:
+            if req.vcs:
+                if r.vcs == req.vcs and r.uri == req.uri:
+                    return True
+            else:
+                if r.name == req.name:
+                    return True
+
+        return False
+
+    def add(self, req_str: str) -> bool:
+        """
+        Add a requirement to the requirements.txt file.
+        """
+        # Check if the requirement already exists
+        req = self.loads(req_str)[0]
+
+        # Update the requirement if it already exists, else add a new one
+        for i, existing_req in enumerate(self.requirements):
+            if existing_req.name == req.name:
+                self.requirements[i] = req  # Update in-place
+                return True
+
+        self.requirements.append(req)  # Add new requirement
+        return True
+
+    def remove(self, req_str: str) -> bool:
+        """
+        Remove a requirement from the requirements.txt file.
+        """
+        # Check if the requirement exists
+        req = self.loads(req_str)[0]
+
+        # It is possible that req does not contain a version, so we need to check if it exists in the requirements
+        if not self._exists(req):
+            return False
+
+        self.requirements = [r for r in self.requirements if r.name != req.name]
+        return True
+
+    def dumps(self) -> str:
+        """
+        Dump the requirements.txt file.
+        """
+        return "\n".join([str(r.line) for r in self.requirements])
 
 
 class IaaSJob:
@@ -279,7 +347,7 @@ class IaaS(IaaSJob):
                 var c = jelastic.environment.control, e = envName, s = session, r, resp;
                 resp = c.GetEnvInfo(e, s);
                 if (resp.result != 0) return resp;
-                r = c.RestartNodes({ envName: e, session: s, nodeGroup: nodeGroup, isSequential: false });
+                r = c.RestartNodes({ envName: e, session: s, nodeGroup: nodeGroup, isSequential: true, manageDnsState: true, delay: 30000 });
                 if (r.result != 0) return r;
                 return { result: 0, message: 'Restarted ' + nodeGroup}
                 """
@@ -299,6 +367,9 @@ class IaaS(IaaSJob):
             task_result = self.client.environment.Control.RestartNodes(
                 env_name=self.env_name,
                 node_group=node_group,
+                is_sequential=True,
+                manage_dns_state=True,
+                delay=delay,
             )
             results.append(task_result)
 
@@ -377,6 +448,8 @@ class IaaSNetBox(IaaS):
     This class is used to manage the IaaS layer of the Jelastic platform for NetBox.
     """
 
+    NETBOX_DIR = '/etc/netbox'
+
     def get_nb_node_groups(self):
         """
         Get the environment node groups for NetBox.
@@ -399,7 +472,9 @@ class IaaSNetBox(IaaS):
         master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
 
         try:
-            plugins_yaml = self.execute_cmd(master_node_id, f"cat /etc/netbox/config/{file_name}")[0].get("out", "")
+            plugins_yaml = self.execute_cmd(master_node_id, f"cat {self.NETBOX_DIR}/config/{file_name}")[0].get(
+                "out", ""
+            )
         except JelasticApiError:
             plugins_yaml = ""
 
@@ -414,9 +489,27 @@ class IaaSNetBox(IaaS):
 
         self.client.environment.File.Write(
             env_name=self.env_name,
-            path=f"/etc/netbox/config/{file_name}",
+            path=f"{self.NETBOX_DIR}/config/{file_name}",
             body=plugins_yaml,
             node_id=master_node_id,
+            is_append_mode=False,
+        )
+
+    def get_requirements_parser(self):
+        master_node_id = self.get_master_node(NODE_GROUP_CP).get('id')
+        requirements_str = self.execute_cmd(master_node_id, f'cat {self.NETBOX_DIR}/plugin_requirements.txt')[0].get(
+            'out', ''
+        )
+        return RequirementsParser(requirements_str)
+
+    def write_requirements(self, req: RequirementsParser):
+        master_node_id = self.get_master_node(NODE_GROUP_CP).get('id')
+        requirements_str = req.dumps()
+        return self.client.environment.File.Write(
+            env_name=self.env_name,
+            node_id=master_node_id,
+            body=requirements_str,
+            path=f'{self.NETBOX_DIR}/plugin_requirements.txt',
             is_append_mode=False,
         )
 
@@ -428,6 +521,7 @@ class IaaSNetBox(IaaS):
         github_token=None,
         restart: bool = True,
         collectstatic: bool = True,
+        install: bool = True,
     ):
         master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
         activate_env = "source /opt/netbox/venv/bin/activate"
@@ -440,12 +534,19 @@ class IaaSNetBox(IaaS):
             github_url = plugin.get("github_url")
             github_url = github_url.replace("https://github.com", f"git+https://{github_token}@github.com")
 
-            self.execute_cmd(master_node_id, f"{activate_env} && pip install {github_url}@{version}")
+            plugin_req = f'{github_url}@{version}'
         else:
-            self.execute_cmd(
-                master_node_id,
-                f'{activate_env} && pip install {plugin.get("name")}=={version}',
-            )
+            plugin_req = f'{plugin.get("name")}=={version}'
+
+        req = self.get_requirements_parser()
+        if req.add(plugin_req):
+            self.write_requirements(req)
+
+            if install:
+                self.execute_cmd(
+                    master_node_id,
+                    f'{activate_env} && pip install -r {self.NETBOX_DIR}/plugin_requirements.txt',
+                )
 
         plugins = self.load_plugins()
         disabled_plugins = self.load_plugins(file_name=DISABLED_PLUGINS_FILE_NAME)
@@ -490,10 +591,15 @@ class IaaSNetBox(IaaS):
         # Uninstall the plugin from the virtual environment
         master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
         activate_env = "source /opt/netbox/venv/bin/activate"
-        self.execute_cmd(
-            master_node_id,
-            f'{activate_env} && pip uninstall {plugin.get("name")} -y',
-        )
+
+        req = self.get_requirements_parser()
+        if req.remove(plugin.get("name")):
+            self.write_requirements(req)
+
+            self.execute_cmd(
+                master_node_id,
+                f'{activate_env} && pip uninstall -y {plugin.get("name")}',
+            )
 
         return self.restart_nodes(
             node_groups=[node_group["name"] for node_group in self.get_nb_node_groups()],
@@ -644,6 +750,7 @@ class IaaSNetBox(IaaS):
                     github_token=license,
                     restart=False,
                     collectstatic=False,  # Do not run during upgrade as it may crash due to version incompatibility
+                    install=False,  # Do not install the plugin as it will be installed during the upgrade
                 )
 
         # Fetch all node groups
