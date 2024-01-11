@@ -6,6 +6,7 @@ from django.forms import ValidationError
 from netbox.forms import NetBoxModelForm
 from utilities.forms import BootstrapMixin, ConfirmationForm as _ConfirmationForm
 from utilities.forms.fields import CommentField
+from utilities.rqworker import get_workers_for_queue
 from .constants import NETBOX_SETTINGS, NODE_GROUP_SQLDB, DISABLED_PLUGINS_FILE_NAME
 from .models import *
 from .utils import *
@@ -370,6 +371,11 @@ class NetBoxUpgradeForm(BootstrapMixin, forms.Form):
         # Ensure no actions are currently running on the environment
         if env.get_actions():
             raise ValidationError({"version": "There are currently actions running on the environment."})
+
+        if not get_workers_for_queue('default'):
+            raise ValidationError(
+                "No RQ workers operating on the 'default' queue are currently active in the environment."
+            )
 
 
 class ConfirmationForm(_ConfirmationForm):
