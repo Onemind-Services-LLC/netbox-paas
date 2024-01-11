@@ -342,7 +342,7 @@ class IaaS(IaaSJob):
         logger.debug(f"Restarting nodes for node groups {', '.join(node_groups)}")
         if lazy:
             for node_group in node_groups:
-                script_name = f"restart-{node_group}-ncp"
+                script_name = f"ncp-restart-{node_group}"
                 script_code = """
                 var c = jelastic.environment.control, e = envName, s = session, r, resp;
                 resp = c.GetEnvInfo(e, s);
@@ -755,86 +755,82 @@ class IaaSNetBox(IaaS):
 
         # Fetch all node groups
         for node_group in self.get_nb_node_groups():
-            node_group_name = node_group["name"]
-            script_name = f"upgrade-netbox-{node_group_name}-ncp"
-            script_code = """
-            var c = jelastic.environment.control, e = envName, s = session, r, resp;
-            resp = c.GetEnvInfo(e, s);
-            if (resp.result != 0) return resp;
+            # If the node_group is a master, redeploy without running a script
+            if node_group['name'] == NODE_GROUP_CP:
+                logger.info(f"Upgrading NetBox {node_group['name']} nodes to version v{version}")
+                self.client.environment.Control.RedeployContainersByGroup(
+                    env_name=self.env_name,
+                    node_group=node_group['name'],
+                    tag=f"v{version}",
+                    use_existing_volumes=True,
+                    manage_dns_state=True,
+                    is_sequential=True,
+                    delay=60000,
+                )
 
-            // Wait for the environment to be running before redeploying
-            var isRunning = false, attempts = 0, maxAttempts = 30;
-            while (!isRunning && attempts < maxAttempts) {
-              envInfo = c.GetEnvInfo(e, s);
-              if (envInfo.result != 0) return envInfo;
+                # Run collectstatic command
+                self.execute_cmd(
+                    node_id=master_node_id,
+                    command=f"source /opt/netbox/venv/bin/activate && /opt/netbox/netbox/manage.py collectstatic --no-input --clear 1>/dev/null",
+                )
+            else:
+                # Run a script to upgrade the node groups
+                node_group_name = node_group["name"]
+                script_name = f"ncp-upgrade-netbox-{node_group_name}"
+                script_code = """
+                import com.hivext.api.Response;
+                let retries = 0, waitInterval = (interval * 1000), resp, c = jelastic.environment.control, e = envName, s = session, r
 
-              if (envInfo.env.status == 1) {
-                isRunning = true;
-              } else {
-                attempts++;
-                java.lang.Thread.sleep(30000);
-              }
-            }
+                do {
+                    java.lang.Thread.sleep(retries ? waitInterval : 0)
 
-            if (!isRunning) {
-              return { result: 1, message: 'Environment is not running' };
-            }
+                    resp = api.env.control.GetEnvInfo({ envName: envName, lazy: true })
+                    if (resp.result != 0 && resp.result != Response.APPLICATION_NOT_EXIST) return resp;
+                    api.marketplace.console.WriteLog(logPrefix + " [" + (retries + 1) + "/"+ maxRetries + "] checking " + envName + " status result: " + (resp.env ? resp.env.status : resp ));
 
-            r = c.RedeployContainersByGroup({ envName: e, session: s, nodeGroup: nodeGroup, tag: tag, useExistingVolumes: true });
-            if (r.result != 0) return r;
-            return { result: 0, message: 'Upgraded ' + nodeGroup}
-            """
+                } while (resp.result != Response.APPLICATION_NOT_EXIST && resp.env.status != 1 && (++retries < maxRetries))
 
-            self.run_script(
-                name=script_name,
-                code=script_code,
-                description=f"Upgrade {node_group_name} nodes",
-                params={
-                    "tag": f"v{version}",
-                    "envName": self.env_name,
-                    "nodeGroup": node_group_name,
-                },
-                delay=20000 if node_group_name == NODE_GROUP_CP else 60000,
-            )
+                // Wait additional 30 seconds in case additional actions are running
+                java.lang.Thread.sleep(30000)
 
-        # Create script to run collectstatic after upgrade
-        script_name = f"collectstatic-cp-ncp"
-        script_code = """
-        var c = jelastic.environment.control, e = envName, s = session, r, resp;
-        resp = c.GetEnvInfo(e, s);
-        if (resp.result != 0) return resp;
+                // Reset retries
+                retries = 0
 
-        // Wait for the environment to be running before running collectstatic
-        var isRunning = false, attempts = 0, maxAttempts = 30;
-        while (!isRunning && attempts < maxAttempts) {
-          envInfo = c.GetEnvInfo(e, s);
-          if (envInfo.result != 0) return envInfo;
+                // Wait for environment actions to finish
+                do {
+                    java.lang.Thread.sleep(retries ? waitInterval: 0)
 
-          if (envInfo.env.status == 1) {
-            isRunning = true;
-          } else {
-            attempts++;
-            java.lang.Thread.sleep(30000);
-          }
-        }
+                    resp = api.env.tracking.GetCurrentActions()
+                    if (resp.result != 0) return resp;
 
-        if (!isRunning) {
-          return { result: 1, message: 'Environment is not running' };
-        }
+                    // Find the current environment action
+                    var currentActions = resp.array.filter(function(action) {
+                        return action.text.env == envName;
+                    })
 
-        // Run collectstatic command
-        r = c.ExecCmdById({ envName: e, session: s, nodeId: nodeId, commandList: [{ command: 'source /opt/netbox/venv/bin/activate && /opt/netbox/netbox/manage.py collectstatic --no-input --clear 1>/dev/null' }] });
-        if (r.result != 0) return r;
-        return { result: 0, message: 'Ran collectstatic'}
-        """
+                    // If there are no current actions, break the loop
+                    if (!currentActions.length) break;
 
-        self.run_script(
-            name=script_name,
-            code=script_code,
-            description=f"Run collectstatic after upgrade",
-            params={
-                "envName": self.env_name,
-                "nodeId": master_node_id,
-            },
-            delay=120000,
-        )
+                    api.marketplace.console.WriteLog(logPrefix + " [" + (retries + 1) + "/"+ maxRetries + "] waiting for " + envName + " actions to finish");
+                } while (++retries < maxRetries)
+
+                r = c.RedeployContainersByGroup({ envName: e, session: s, nodeGroup: nodeGroup, tag: tag, useExistingVolumes: true, manageDnsState: true, isSequential: true });
+                if (r.result != 0) return r;
+
+                return { result: 0, message: 'Upgraded ' + nodeGroup}
+                """
+
+                self.run_script(
+                    name=script_name,
+                    code=script_code,
+                    description=f"Upgrading '{node_group_name}' node",
+                    params={
+                        "tag": f"v{version}",
+                        "envName": self.env_name,
+                        "nodeGroup": node_group_name,
+                        "maxRetries": 100,
+                        "interval": 60,
+                        "logPrefix": node_group_name,
+                    },
+                    delay=30000,
+                )
