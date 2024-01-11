@@ -367,6 +367,10 @@ class NetBoxUpgradeForm(BootstrapMixin, forms.Form):
         if not upgrade_check:
             raise ValidationError({"version": error})
 
+        # Ensure no actions are currently running on the environment
+        if env.get_actions():
+            raise ValidationError({"version": "There are currently actions running on the environment."})
+
 
 class ConfirmationForm(_ConfirmationForm):
     """

@@ -442,6 +442,10 @@ class IaaS(IaaSJob):
     def get_master_node(self, node_group):
         return self.get_nodes(node_group=node_group, is_master=True)
 
+    def get_actions(self):
+        actions = self.client.environment.Tracking.GetCurrentActions().get("array", [])
+        return [action for action in actions if action.get("text", {}).get("env") == self.env_name]
+
 
 class IaaSNetBox(IaaS):
     """
@@ -692,8 +696,7 @@ class IaaSNetBox(IaaS):
 
     def is_db_backup_running(self, app_unique_name):
         # Get current running actions
-        current_actions = self.client.environment.Tracking.GetCurrentActions().get("array", [])
-        for action in current_actions:
+        for action in self.get_actions():
             action_parameters = action.get("parameters", {})
 
             if (
