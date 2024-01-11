@@ -548,10 +548,17 @@ class IaaSNetBox(IaaS):
             self.write_requirements(req)
 
             if install:
-                self.execute_cmd(
-                    master_node_id,
-                    f'{activate_env} && pip install -r {self.NETBOX_DIR}/plugin_requirements.txt',
-                )
+                # Get all node IDs for the NetBox node groups
+                node_ids = [
+                    node["id"]
+                    for node_group in self.get_nb_node_groups()
+                    for node in self.get_nodes(node_group=node_group["name"], is_master=False)
+                ]
+
+                # Install the plugin
+                cmd = f'{activate_env} && pip install -r {self.NETBOX_DIR}/plugin_requirements.txt'
+                for node_id in node_ids:
+                    self.execute_cmd(node_id, cmd)
 
         plugins = self.load_plugins()
         disabled_plugins = self.load_plugins(file_name=DISABLED_PLUGINS_FILE_NAME)
@@ -601,10 +608,17 @@ class IaaSNetBox(IaaS):
         if req.remove(plugin.get("name")):
             self.write_requirements(req)
 
-            self.execute_cmd(
-                master_node_id,
-                f'{activate_env} && pip uninstall -y {plugin.get("name")}',
-            )
+            # Get all node IDs for the NetBox node groups
+            node_ids = [
+                node["id"]
+                for node_group in self.get_nb_node_groups()
+                for node in self.get_nodes(node_group=node_group["name"], is_master=False)
+            ]
+
+            # Uninstall the plugin
+            cmd = f'{activate_env} && pip uninstall -y {plugin.get("name")}'
+            for node_id in node_ids:
+                self.execute_cmd(node_id, cmd)
 
         return self.restart_nodes(
             node_groups=[node_group["name"] for node_group in self.get_nb_node_groups()],
