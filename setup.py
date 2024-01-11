@@ -9,7 +9,7 @@ with open(readme) as fh:
 
 setup(
     name="netbox-cloud-pilot",
-    version="0.1.4",
+    version="0.1.5",
     description="Enhances NetBox on CloudMyDC's VAP with advanced management and control features.",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -19,7 +19,7 @@ setup(
     author_email="asaharan@onemindservices.com",
     maintainer="Abhimanyu Saharan",
     maintainer_email="asaharan@onemindservices.com",
-    install_requires=["py-jelastic", "croniter<3.0.0", "semver<4.0.0"],
+    install_requires=["py-jelastic", "croniter<3.0.0", "semver<4.0.0", "requirements-parser"],
     packages=find_packages(),
     include_package_data=True,
     zip_safe=False,
