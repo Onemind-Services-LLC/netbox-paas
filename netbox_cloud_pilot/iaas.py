@@ -303,11 +303,12 @@ class IaaS(IaaSJob):
             env_name=self.env_name, node_group=node_group, vars=env_vars
         )
 
-    def run_script(self, name, code, description=None, params=None, delay=10000):
+    def run_script(self, name, code, description=None, params=None, delay=10):
         """
         Run a script.
         """
         app_id = self.get_env().get("appid")
+        delay = delay * 1000
 
         try:
             result = self.client.development.Scripting.GetScripts(
@@ -333,7 +334,7 @@ class IaaS(IaaSJob):
             params=params,
         )
 
-    def restart_nodes(self, node_groups: list[str], lazy: bool = False, delay: int = 10000):
+    def restart_nodes(self, node_groups: list[str], lazy: bool = False, delay: int = 10):
         """
         Restart nodes for a list of node groups.
         """
@@ -737,6 +738,7 @@ class IaaSNetBox(IaaS):
         """
         Upgrade NetBox.
         """
+        activate_env = "source /opt/netbox/venv/bin/activate"
         master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
 
         if addon := self.get_installed_addon(app_id="db-backup", node_group=NODE_GROUP_SQLDB):
@@ -756,84 +758,91 @@ class IaaSNetBox(IaaS):
                     install=False,  # Do not install the plugin as it will be installed during the upgrade
                 )
 
-        # Fetch all node groups
-        for node_group in self.get_nb_node_groups():
-            # If the node_group is a master, redeploy without running a script
-            if node_group['name'] == NODE_GROUP_CP:
-                logger.info(f"Upgrading NetBox {node_group['name']} nodes to version v{version}")
-                self.client.environment.Control.RedeployContainersByGroup(
-                    env_name=self.env_name,
-                    node_group=node_group['name'],
-                    tag=f"v{version}",
-                    use_existing_volumes=True,
-                    manage_dns_state=True,
-                    is_sequential=True,
-                    delay=60000,
-                )
+        logger.info(f"Upgrading NetBox {NODE_GROUP_CP} nodes to version v{version}")
+        self.client.environment.Control.RedeployContainersByGroup(
+            env_name=self.env_name,
+            node_group=NODE_GROUP_CP,
+            tag=f"v{version}",
+            use_existing_volumes=True,
+            manage_dns_state=True,
+            is_sequential=True,
+            delay=60000,
+        )
 
-                # Run collectstatic command
-                self.execute_cmd(
-                    node_id=master_node_id,
-                    command=f"source /opt/netbox/venv/bin/activate && /opt/netbox/netbox/manage.py collectstatic --no-input --clear 1>/dev/null",
-                )
-            else:
-                # Run a script to upgrade the node groups
-                node_group_name = node_group["name"]
-                script_name = f"ncp-upgrade-netbox-{node_group_name}"
-                script_code = """
-                import com.hivext.api.Response;
-                let retries = 0, waitInterval = (interval * 1000), resp, c = jelastic.environment.control, e = envName, s = session, r
+        # Run collectstatic command
+        self.execute_cmd(
+            node_id=master_node_id,
+            command=f"{activate_env} && /opt/netbox/netbox/manage.py collectstatic --no-input --clear 1>/dev/null",
+        )
 
-                do {
-                    java.lang.Thread.sleep(retries ? waitInterval : 0)
+        # Get all node groups except the CP node group
+        node_groups = [
+            node_group["name"] for node_group in self.get_nb_node_groups() if node_group["name"] != NODE_GROUP_CP
+        ]
+        redeploy_script = """
+        import com.hivext.api.Response;
 
-                    resp = api.env.control.GetEnvInfo({ envName: envName, lazy: true })
-                    if (resp.result != 0 && resp.result != Response.APPLICATION_NOT_EXIST) return resp;
-                    api.marketplace.console.WriteLog(logPrefix + " [" + (retries + 1) + "/"+ maxRetries + "] checking " + envName + " status result: " + (resp.env ? resp.env.status : resp ));
+        function checkEnvStatus() {
+            let retries = 0, waitInterval = (interval * 1000), resp, c = jelastic.environment.control, e = envName, s = session, r
+            do {
+                java.lang.Thread.sleep(retries ? waitInterval : 0)
+                resp = api.env.control.GetEnvInfo({ envName: envName, lazy: true })
+                if (resp.result != 0 && resp.result != Response.APPLICATION_NOT_EXIST) return resp;
+                api.marketplace.console.WriteLog(logPrefix + " [" + (retries + 1) + "/"+ maxRetries + "] checking " + envName + " status result: " + (resp.env ? resp.env.status : resp ));
+            } while (resp.result != Response.APPLICATION_NOT_EXIST && resp.env.status != 1 && (++retries < maxRetries))
+        }
 
-                } while (resp.result != Response.APPLICATION_NOT_EXIST && resp.env.status != 1 && (++retries < maxRetries))
+        function checkCurrentActions() {
+            let retries = 0, waitInterval = (interval * 1000), resp, c = jelastic.environment.tracking, e = envName, s = session, r
+            do {
+                java.lang.Thread.sleep(retries ? waitInterval: 0)
+                resp = api.env.tracking.GetCurrentActions()
+                if (resp.result != 0) return resp;
+                var currentActions = resp.array.filter(function(action) {
+                    return action.text && action.text.env == envName
+                })
+                if (!currentActions.length) break;
+                api.marketplace.console.WriteLog(logPrefix + " [" + (retries + 1) + "/"+ maxRetries + "] waiting for " + envName + " actions to finish");
+            } while (++retries < maxRetries)
+        }
 
-                // Wait additional 30 seconds in case additional actions are running
-                java.lang.Thread.sleep(30000)
+        checkEnvStatus();
+        checkCurrentActions();
 
-                // Reset retries
-                retries = 0
+        api.marketplace.console.WriteLog("RedeployContainers: " + nodeGroup);
+        return api.env.control.RedeployContainersByGroup({ envName: envName, session: session, nodeGroup: nodeGroup, tag: tag, useExistingVolumes: true, manageDnsState: true, isSequential: true });
+        """
 
-                // Wait for environment actions to finish
-                do {
-                    java.lang.Thread.sleep(retries ? waitInterval: 0)
+        batch_request = {
+            "alias": {"m": "Dev.Scripting.EvalCode"},
+            "global": {"appid": "cluster", "session": self.client._token, "type": "js", "code": redeploy_script},
+            "methods": [],
+        }
 
-                    resp = api.env.tracking.GetCurrentActions()
-                    if (resp.result != 0) return resp;
+        for node_group in node_groups:
+            batch_request["methods"].append(
+                {
+                    "m": {
+                        "params": {
+                            "envName": self.env_name,
+                            "nodeGroup": node_group,
+                            "tag": f"v{version}",
+                            "maxRetries": 100,
+                            "interval": 60,
+                            "logPrefix": node_group,
+                        }
+                    }
+                }
+            )
 
-                    // Find the current environment action
-                    var currentActions = resp.array.filter(function(action) {
-                        return action.text.env == envName;
-                    })
+        batch_code = f"""
+        let resp = api.utils.batch.Call(appid, toJSON({batch_request}), true);
+        if (resp.result != 0) return resp;
+        """
 
-                    // If there are no current actions, break the loop
-                    if (!currentActions.length) break;
-
-                    api.marketplace.console.WriteLog(logPrefix + " [" + (retries + 1) + "/"+ maxRetries + "] waiting for " + envName + " actions to finish");
-                } while (++retries < maxRetries)
-
-                r = c.RedeployContainersByGroup({ envName: e, session: s, nodeGroup: nodeGroup, tag: tag, useExistingVolumes: true, manageDnsState: true, isSequential: true });
-                if (r.result != 0) return r;
-
-                return { result: 0, message: 'Upgraded ' + nodeGroup}
-                """
-
-                self.run_script(
-                    name=script_name,
-                    code=script_code,
-                    description=f"Upgrading '{node_group_name}' node",
-                    params={
-                        "tag": f"v{version}",
-                        "envName": self.env_name,
-                        "nodeGroup": node_group_name,
-                        "maxRetries": 100,
-                        "interval": 60,
-                        "logPrefix": node_group_name,
-                    },
-                    delay=30000,
-                )
+        self.run_script(
+            name="ncp-upgrade-netbox",
+            description=f"Upgrading NetBox nodes to version v{version}",
+            code=batch_code,
+            delay=10,
+        )
