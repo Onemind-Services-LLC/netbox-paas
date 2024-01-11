@@ -836,5 +836,5 @@ class IaaSNetBox(IaaS):
                 "envName": self.env_name,
                 "nodeId": master_node_id,
             },
-            delay=12000,
+            delay=120000,
         )
