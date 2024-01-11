@@ -1,5 +1,6 @@
 import ast
 import logging
+import os
 import re
 from datetime import datetime
 from functools import lru_cache
@@ -37,13 +38,6 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
 
     key = models.CharField(max_length=255, unique=True, validators=[MinLengthValidator(40)])
 
-    env_name = models.CharField(
-        max_length=255,
-        unique=True,
-        validators=[MinLengthValidator(5)],
-        verbose_name="Environment Name",
-    )
-
     env_name_storage = models.CharField(
         max_length=255,
         unique=True,
@@ -65,6 +59,10 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
 
     def __str__(self):
         return self.env_name
+
+    @property
+    def env_name(self):
+        return os.environ.get("ENV_NAME")
 
     def get_absolute_url(self):
         return reverse("plugins:netbox_cloud_pilot:netboxconfiguration", args=[self.pk])

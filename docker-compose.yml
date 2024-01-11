@@ -9,6 +9,8 @@ services:
       - postgres
       - redis
     env_file: env/netbox.env
+    environment:
+      ENV_NAME: netbox-cloud-pilot
     volumes:
       - ./configuration:/etc/netbox/config:z,ro
 

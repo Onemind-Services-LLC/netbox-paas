@@ -26,7 +26,6 @@ class Migration(migrations.Migration):
                 ('description', models.CharField(blank=True, max_length=200)),
                 ('comments', models.TextField(blank=True)),
                 ('key', models.CharField(max_length=255, unique=True, validators=[django.core.validators.MinLengthValidator(40)])),
-                ('env_name', models.CharField(max_length=255, unique=True, validators=[django.core.validators.MinLengthValidator(5)])),
                 ('env_name_storage', models.CharField(blank=True, max_length=255, unique=True, validators=[django.core.validators.MinLengthValidator(5)])),
                 ('license', models.CharField(blank=True, max_length=255, null=True, validators=[django.core.validators.MinLengthValidator(40), django.core.validators.MaxLengthValidator(93)])),
                 ('tags', taggit.managers.TaggableManager(through='extras.TaggedItem', to='extras.Tag')),

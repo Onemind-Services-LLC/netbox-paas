@@ -8,6 +8,8 @@ import yaml
 from django.conf import settings
 from jelastic import Jelastic
 from jelastic.api.exceptions import JelasticApiError
+from requirements import parse as requirements_parse
+from requirements.parser import Requirement
 from semver.version import Version
 
 from core.choices import JobStatusChoices
@@ -22,6 +24,72 @@ __all__ = (
     "IaaS",
     "IaaSNetBox",
 )
+
+
+class RequirementsParser:
+    """
+    This class is used to parse the requirements.txt file.
+    """
+
+    def __init__(self, req_str: str):
+        self.requirements = self.loads(req_str)
+
+    @staticmethod
+    def loads(req_str: str) -> list[Requirement]:
+        """
+        Parse the requirements.txt file.
+        """
+        return list(requirements_parse(req_str))
+
+    def _exists(self, req: Requirement) -> bool:
+        """
+        Check if a requirement exists.
+        """
+        for r in self.requirements:
+            if req.vcs:
+                if r.vcs == req.vcs and r.uri == req.uri:
+                    return True
+            else:
+                if r.name == req.name:
+                    return True
+
+        return False
+
+    def add(self, req_str: str) -> bool:
+        """
+        Add a requirement to the requirements.txt file.
+        """
+        # Check if the requirement already exists
+        req = self.loads(req_str)[0]
+
+        # Update the requirement if it already exists, else add a new one
+        for i, existing_req in enumerate(self.requirements):
+            if existing_req.name == req.name:
+                self.requirements[i] = req  # Update in-place
+                return True
+
+        self.requirements.append(req)  # Add new requirement
+        return True
+
+    def remove(self, req_str: str) -> bool:
+        """
+        Remove a requirement from the requirements.txt file.
+        """
+        # Check if the requirement exists
+        req = self.loads(req_str)[0]
+
+        # It is possible that req does not contain a version, so we need to check if it exists in the requirements
+        if not self._exists(req):
+            return False
+
+        self.requirements = [r for r in self.requirements if r.name != req.name]
+        return True
+
+    def dumps(self) -> str:
+        """
+        Dump the requirements.txt file.
+        """
+        return "\n".join([str(r.line) for r in self.requirements])
 
 
 class IaaSJob:
@@ -123,7 +191,10 @@ class IaaS(IaaSJob):
         if node_group:
             nodes = [node for node in nodes if node["nodeGroup"] == node_group]
         if is_master:
-            nodes = [node for node in nodes if node["ismaster"]][0]
+            try:
+                nodes = [node for node in nodes if node["ismaster"]][0]
+            except IndexError:
+                nodes = {}
         return nodes
 
     def get_node_groups(self):
@@ -232,11 +303,12 @@ class IaaS(IaaSJob):
             env_name=self.env_name, node_group=node_group, vars=env_vars
         )
 
-    def run_script(self, name, code, description=None, params=None, delay=10000):
+    def run_script(self, name, code, description=None, params=None, delay=10):
         """
         Run a script.
         """
         app_id = self.get_env().get("appid")
+        delay = delay * 1000
 
         try:
             result = self.client.development.Scripting.GetScripts(
@@ -262,7 +334,7 @@ class IaaS(IaaSJob):
             params=params,
         )
 
-    def restart_nodes(self, node_groups: list[str], lazy: bool = False, delay: int = 10000):
+    def restart_nodes(self, node_groups: list[str], lazy: bool = False, delay: int = 10):
         """
         Restart nodes for a list of node groups.
         """
@@ -271,12 +343,12 @@ class IaaS(IaaSJob):
         logger.debug(f"Restarting nodes for node groups {', '.join(node_groups)}")
         if lazy:
             for node_group in node_groups:
-                script_name = f"restart-{node_group}-ncp"
+                script_name = f"ncp-restart-{node_group}"
                 script_code = """
                 var c = jelastic.environment.control, e = envName, s = session, r, resp;
                 resp = c.GetEnvInfo(e, s);
                 if (resp.result != 0) return resp;
-                r = c.RestartNodes({ envName: e, session: s, nodeGroup: nodeGroup, isSequential: false });
+                r = c.RestartNodes({ envName: e, session: s, nodeGroup: nodeGroup, isSequential: true, manageDnsState: true, delay: 30000 });
                 if (r.result != 0) return r;
                 return { result: 0, message: 'Restarted ' + nodeGroup}
                 """
@@ -296,6 +368,9 @@ class IaaS(IaaSJob):
             task_result = self.client.environment.Control.RestartNodes(
                 env_name=self.env_name,
                 node_group=node_group,
+                is_sequential=True,
+                manage_dns_state=True,
+                delay=delay,
             )
             results.append(task_result)
 
@@ -368,11 +443,17 @@ class IaaS(IaaSJob):
     def get_master_node(self, node_group):
         return self.get_nodes(node_group=node_group, is_master=True)
 
+    def get_actions(self):
+        actions = self.client.environment.Tracking.GetCurrentActions().get("array", [])
+        return [action for action in actions if action.get("text", {}).get("env") == self.env_name]
+
 
 class IaaSNetBox(IaaS):
     """
     This class is used to manage the IaaS layer of the Jelastic platform for NetBox.
     """
+
+    NETBOX_DIR = '/etc/netbox'
 
     def get_nb_node_groups(self):
         """
@@ -396,7 +477,9 @@ class IaaSNetBox(IaaS):
         master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
 
         try:
-            plugins_yaml = self.execute_cmd(master_node_id, f"cat /etc/netbox/config/{file_name}")[0].get("out", "")
+            plugins_yaml = self.execute_cmd(master_node_id, f"cat {self.NETBOX_DIR}/config/{file_name}")[0].get(
+                "out", ""
+            )
         except JelasticApiError:
             plugins_yaml = ""
 
@@ -411,9 +494,27 @@ class IaaSNetBox(IaaS):
 
         self.client.environment.File.Write(
             env_name=self.env_name,
-            path=f"/etc/netbox/config/{file_name}",
+            path=f"{self.NETBOX_DIR}/config/{file_name}",
             body=plugins_yaml,
             node_id=master_node_id,
+            is_append_mode=False,
+        )
+
+    def get_requirements_parser(self):
+        master_node_id = self.get_master_node(NODE_GROUP_CP).get('id')
+        requirements_str = self.execute_cmd(master_node_id, f'cat {self.NETBOX_DIR}/plugin_requirements.txt')[0].get(
+            'out', ''
+        )
+        return RequirementsParser(requirements_str)
+
+    def write_requirements(self, req: RequirementsParser):
+        master_node_id = self.get_master_node(NODE_GROUP_CP).get('id')
+        requirements_str = req.dumps()
+        return self.client.environment.File.Write(
+            env_name=self.env_name,
+            node_id=master_node_id,
+            body=requirements_str,
+            path=f'{self.NETBOX_DIR}/plugin_requirements.txt',
             is_append_mode=False,
         )
 
@@ -425,6 +526,7 @@ class IaaSNetBox(IaaS):
         github_token=None,
         restart: bool = True,
         collectstatic: bool = True,
+        install: bool = True,
     ):
         master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
         activate_env = "source /opt/netbox/venv/bin/activate"
@@ -437,12 +539,19 @@ class IaaSNetBox(IaaS):
             github_url = plugin.get("github_url")
             github_url = github_url.replace("https://github.com", f"git+https://{github_token}@github.com")
 
-            self.execute_cmd(master_node_id, f"{activate_env} && pip install {github_url}@{version}")
+            plugin_req = f'{github_url}@{version}'
         else:
-            self.execute_cmd(
-                master_node_id,
-                f'{activate_env} && pip install {plugin.get("name")}=={version}',
-            )
+            plugin_req = f'{plugin.get("name")}=={version}'
+
+        req = self.get_requirements_parser()
+        if req.add(plugin_req):
+            self.write_requirements(req)
+
+            if install:
+                self.execute_cmd(
+                    master_node_id,
+                    f'{activate_env} && pip install -r {self.NETBOX_DIR}/plugin_requirements.txt',
+                )
 
         plugins = self.load_plugins()
         disabled_plugins = self.load_plugins(file_name=DISABLED_PLUGINS_FILE_NAME)
@@ -487,10 +596,15 @@ class IaaSNetBox(IaaS):
         # Uninstall the plugin from the virtual environment
         master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
         activate_env = "source /opt/netbox/venv/bin/activate"
-        self.execute_cmd(
-            master_node_id,
-            f'{activate_env} && pip uninstall {plugin.get("name")} -y',
-        )
+
+        req = self.get_requirements_parser()
+        if req.remove(plugin.get("name")):
+            self.write_requirements(req)
+
+            self.execute_cmd(
+                master_node_id,
+                f'{activate_env} && pip uninstall -y {plugin.get("name")}',
+            )
 
         return self.restart_nodes(
             node_groups=[node_group["name"] for node_group in self.get_nb_node_groups()],
@@ -547,6 +661,9 @@ class IaaSNetBox(IaaS):
         master_node = self.get_master_node(NODE_GROUP_CP)
         docker = master_node.get("customitem", {})
 
+        if not docker:
+            return []
+
         response = requests.get(f'https://hub.docker.com/v2/repositories/{docker["dockerName"]}/tags?page_size=1000')
         response.raise_for_status()
         response = response.json()
@@ -580,8 +697,7 @@ class IaaSNetBox(IaaS):
 
     def is_db_backup_running(self, app_unique_name):
         # Get current running actions
-        current_actions = self.client.environment.Tracking.GetCurrentActions().get("array", [])
-        for action in current_actions:
+        for action in self.get_actions():
             action_parameters = action.get("parameters", {})
 
             if (
@@ -622,6 +738,7 @@ class IaaSNetBox(IaaS):
         """
         Upgrade NetBox.
         """
+        activate_env = "source /opt/netbox/venv/bin/activate"
         master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
 
         if addon := self.get_installed_addon(app_id="db-backup", node_group=NODE_GROUP_SQLDB):
@@ -638,90 +755,94 @@ class IaaSNetBox(IaaS):
                     github_token=license,
                     restart=False,
                     collectstatic=False,  # Do not run during upgrade as it may crash due to version incompatibility
+                    install=False,  # Do not install the plugin as it will be installed during the upgrade
                 )
 
-        # Fetch all node groups
-        for node_group in self.get_nb_node_groups():
-            node_group_name = node_group["name"]
-            script_name = f"upgrade-netbox-{node_group_name}-ncp"
-            script_code = """
-            var c = jelastic.environment.control, e = envName, s = session, r, resp;
-            resp = c.GetEnvInfo(e, s);
-            if (resp.result != 0) return resp;
+        logger.info(f"Upgrading NetBox {NODE_GROUP_CP} nodes to version v{version}")
+        self.client.environment.Control.RedeployContainersByGroup(
+            env_name=self.env_name,
+            node_group=NODE_GROUP_CP,
+            tag=f"v{version}",
+            use_existing_volumes=True,
+            manage_dns_state=True,
+            is_sequential=True,
+            delay=60000,
+        )
 
-            // Wait for the environment to be running before redeploying
-            var isRunning = false, attempts = 0, maxAttempts = 30;
-            while (!isRunning && attempts < maxAttempts) {
-              envInfo = c.GetEnvInfo(e, s);
-              if (envInfo.result != 0) return envInfo;
+        # Run collectstatic command
+        self.execute_cmd(
+            node_id=master_node_id,
+            command=f"{activate_env} && /opt/netbox/netbox/manage.py collectstatic --no-input --clear 1>/dev/null",
+        )
 
-              if (envInfo.env.status == 1) {
-                isRunning = true;
-              } else {
-                attempts++;
-                java.lang.Thread.sleep(30000);
-              }
-            }
+        # Get all node groups except the CP node group
+        node_groups = [
+            node_group["name"] for node_group in self.get_nb_node_groups() if node_group["name"] != NODE_GROUP_CP
+        ]
+        redeploy_script = """
+        import com.hivext.api.Response;
 
-            if (!isRunning) {
-              return { result: 1, message: 'Environment is not running' };
-            }
+        function checkEnvStatus() {
+            let retries = 0, waitInterval = (interval * 1000), resp, c = jelastic.environment.control, e = envName, s = session, r
+            do {
+                java.lang.Thread.sleep(retries ? waitInterval : 0)
+                resp = api.env.control.GetEnvInfo({ envName: envName, lazy: true })
+                if (resp.result != 0 && resp.result != Response.APPLICATION_NOT_EXIST) return resp;
+                api.marketplace.console.WriteLog(logPrefix + " [" + (retries + 1) + "/"+ maxRetries + "] checking " + envName + " status result: " + (resp.env ? resp.env.status : resp ));
+            } while (resp.result != Response.APPLICATION_NOT_EXIST && resp.env.status != 1 && (++retries < maxRetries))
+        }
 
-            r = c.RedeployContainersByGroup({ envName: e, session: s, nodeGroup: nodeGroup, tag: tag, useExistingVolumes: true });
-            if (r.result != 0) return r;
-            return { result: 0, message: 'Upgraded ' + nodeGroup}
-            """
+        function checkCurrentActions() {
+            let retries = 0, waitInterval = (interval * 1000), resp, c = jelastic.environment.tracking, e = envName, s = session, r
+            do {
+                java.lang.Thread.sleep(retries ? waitInterval: 0)
+                resp = api.env.tracking.GetCurrentActions()
+                if (resp.result != 0) return resp;
+                var currentActions = resp.array.filter(function(action) {
+                    return action.text && action.text.env == envName
+                })
+                if (!currentActions.length) break;
+                api.marketplace.console.WriteLog(logPrefix + " [" + (retries + 1) + "/"+ maxRetries + "] waiting for " + envName + " actions to finish");
+            } while (++retries < maxRetries)
+        }
 
-            self.run_script(
-                name=script_name,
-                code=script_code,
-                description=f"Upgrade {node_group_name} nodes",
-                params={
-                    "tag": f"v{version}",
-                    "envName": self.env_name,
-                    "nodeGroup": node_group_name,
-                },
-                delay=20000 if node_group_name == NODE_GROUP_CP else 60000,
+        checkEnvStatus();
+        checkCurrentActions();
+
+        api.marketplace.console.WriteLog("RedeployContainers: " + nodeGroup);
+        return api.env.control.RedeployContainersByGroup({ envName: envName, session: session, nodeGroup: nodeGroup, tag: tag, useExistingVolumes: true, manageDnsState: true, isSequential: true });
+        """
+
+        batch_request = {
+            "alias": {"m": "Dev.Scripting.EvalCode"},
+            "global": {"appid": "cluster", "session": self.client._token, "type": "js", "code": redeploy_script},
+            "methods": [],
+        }
+
+        for node_group in node_groups:
+            batch_request["methods"].append(
+                {
+                    "m": {
+                        "params": {
+                            "envName": self.env_name,
+                            "nodeGroup": node_group,
+                            "tag": f"v{version}",
+                            "maxRetries": 100,
+                            "interval": 60,
+                            "logPrefix": node_group,
+                        }
+                    }
+                }
             )
 
-        # Create script to run collectstatic after upgrade
-        script_name = f"collectstatic-cp-ncp"
-        script_code = """
-        var c = jelastic.environment.control, e = envName, s = session, r, resp;
-        resp = c.GetEnvInfo(e, s);
+        batch_code = f"""
+        let resp = api.utils.batch.Call(appid, toJSON({batch_request}), true);
         if (resp.result != 0) return resp;
-
-        // Wait for the environment to be running before running collectstatic
-        var isRunning = false, attempts = 0, maxAttempts = 30;
-        while (!isRunning && attempts < maxAttempts) {
-          envInfo = c.GetEnvInfo(e, s);
-          if (envInfo.result != 0) return envInfo;
-
-          if (envInfo.env.status == 1) {
-            isRunning = true;
-          } else {
-            attempts++;
-            java.lang.Thread.sleep(30000);
-          }
-        }
-
-        if (!isRunning) {
-          return { result: 1, message: 'Environment is not running' };
-        }
-
-        // Run collectstatic command
-        r = c.ExecCmdById({ envName: e, session: s, nodeId: nodeId, commandList: [{ command: 'source /opt/netbox/venv/bin/activate && /opt/netbox/netbox/manage.py collectstatic --no-input --clear 1>/dev/null' }] });
-        if (r.result != 0) return r;
-        return { result: 0, message: 'Ran collectstatic'}
         """
 
         self.run_script(
-            name=script_name,
-            code=script_code,
-            description=f"Run collectstatic after upgrade",
-            params={
-                "envName": self.env_name,
-                "nodeId": master_node_id,
-            },
-            delay=12000,
+            name="ncp-upgrade-netbox",
+            description=f"Upgrading NetBox nodes to version v{version}",
+            code=batch_code,
+            delay=10,
         )

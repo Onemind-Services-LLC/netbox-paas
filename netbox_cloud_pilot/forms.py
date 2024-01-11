@@ -6,6 +6,7 @@ from django.forms import ValidationError
 from netbox.forms import NetBoxModelForm
 from utilities.forms import BootstrapMixin, ConfirmationForm as _ConfirmationForm
 from utilities.forms.fields import CommentField
+from utilities.rqworker import get_workers_for_queue
 from .constants import NETBOX_SETTINGS, NODE_GROUP_SQLDB, DISABLED_PLUGINS_FILE_NAME
 from .models import *
 from .utils import *
@@ -45,11 +46,6 @@ class NetBoxConfigurationForm(NetBoxModelForm):
         help_text="Jelastic API token where the NetBox instance is running.",
     )
 
-    env_name = forms.CharField(
-        label="Environment Name",
-        help_text="Jelastic environment name where the NetBox instance is running.",
-    )
-
     env_name_storage = forms.ChoiceField(
         label="Environment Name",
         required=False,
@@ -64,7 +60,7 @@ class NetBoxConfigurationForm(NetBoxModelForm):
     comments = CommentField()
 
     fieldsets = (
-        (None, ("key", "env_name", "description")),
+        (None, ("key", "description")),
         ("Backup", ("env_name_storage",)),
         ("Enterprise", ("license",)),
     )
@@ -73,7 +69,6 @@ class NetBoxConfigurationForm(NetBoxModelForm):
         model = NetBoxConfiguration
         fields = (
             "key",
-            "env_name",
             "description",
             "env_name_storage",
             "license",
@@ -82,9 +77,12 @@ class NetBoxConfigurationForm(NetBoxModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.fields["env_name_storage"].initial = self.instance.env_name_storage
+        # Disable env_name_storage if key is empty
+        if not self.instance.key:
+            self.fields["env_name_storage"].disabled = True
+        else:
+            self.fields["env_name_storage"].initial = self.instance.env_name_storage
 
-        if self.instance.env_name:
             env_infos = (
                 self.instance.iaas(self.instance.env_name, auto_init=False)
                 .client.environment.Control.GetEnvs()
@@ -362,6 +360,11 @@ class NetBoxUpgradeForm(BootstrapMixin, forms.Form):
     def clean(self):
         super().clean()
 
+        if not get_workers_for_queue('default'):
+            raise ValidationError(
+                "No RQ workers operating on the 'default' queue are currently active in the environment."
+            )
+
         instance = NetBoxConfiguration.objects.first()
         env = instance.get_env()
 
@@ -369,6 +372,10 @@ class NetBoxUpgradeForm(BootstrapMixin, forms.Form):
         upgrade_check, error = env.upgrade_checks(self.cleaned_data.get("version"))
         if not upgrade_check:
             raise ValidationError({"version": error})
+
+        # Ensure no actions are currently running on the environment
+        if env.get_actions():
+            raise ValidationError({"version": "There are currently actions running on the environment."})
 
 
 class ConfirmationForm(_ConfirmationForm):
