@@ -694,14 +694,22 @@ class IaaSNetBox(IaaS):
 
         return tags
 
-    def get_upgrades(self):
+    def get_upgrades(self, include_patch:bool=False):
         """
         Get the available upgrades for NetBox.
         """
         docker_tags = self._get_docker_tags()
         current_version = Version.parse(settings.VERSION)
 
-        return [tag for tag in docker_tags if tag > current_version]
+        upgrades = []
+        for tag in docker_tags:
+            if include_patch:
+                if tag.major == current_version.major and tag.minor == current_version.minor:
+                    upgrades.append(tag)
+            if tag > current_version:
+                upgrades.append(tag)
+
+        return upgrades
 
     def is_upgrade_available(self):
         """
