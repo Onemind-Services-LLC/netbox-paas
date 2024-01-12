@@ -418,3 +418,18 @@ class ConfirmationForm(_ConfirmationForm):
     """
 
     name = forms.CharField(widget=forms.HiddenInput())
+
+    def clean(self):
+        super().clean()
+
+        if not get_workers_for_queue('default'):
+            raise ValidationError(
+                "No RQ workers operating on the 'default' queue are currently active in the environment."
+            )
+
+        instance = NetBoxConfiguration.objects.first()
+        env = instance.get_env()
+
+        # Ensure no actions are currently running on the environment
+        if env.get_actions():
+            raise ValidationError("There are currently actions running on the environment.")
