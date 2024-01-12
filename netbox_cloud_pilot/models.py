@@ -332,15 +332,25 @@ class NetBoxDBBackup(ChangeLoggedModel):
     def cron(self):
         return " ".join(croniter(self.crontab).expressions)
 
-    def list_backups(self):
+    @property
+    def get_master_node(self):
         node_groups = self.netbox_env.get_env_storage().get_node_groups()
         master_node = None
         for node_group in node_groups:
             master_node = node_group.get("node", {})
             break
 
+        return master_node
+
+    def list_backups(self):
+        master_node = self.get_master_node
         if not master_node:
             return []
+
+        # Always update restic
+        self.netbox_env.get_env_storage().execute_cmd(
+            node_id=master_node.get("id"), command="/usr/bin/restic self-update 2>&1"
+        )
 
         result = self.netbox_env.get_env_storage().execute_cmd(
             node_id=master_node.get("id"), command="/root/getBackupsAllEnvs.sh"
