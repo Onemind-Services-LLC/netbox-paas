@@ -123,6 +123,18 @@ class NetBoxSettingsForm(BootstrapMixin, forms.Form):
     def clean(self):
         cleaned_data = super().clean()
 
+        if not get_workers_for_queue('default'):
+            raise ValidationError(
+                "No RQ workers operating on the 'default' queue are currently active in the environment."
+            )
+
+        instance = NetBoxConfiguration.objects.first()
+        env = instance.get_env()
+
+        # Ensure no actions are currently running on the environment
+        if env.get_actions():
+            raise ValidationError("There are currently actions running on the environment.")
+
         data = {}
 
         # Iterate through each section in NETBOX_SETTINGS
@@ -203,6 +215,11 @@ class NetBoxBackupStorageForm(BootstrapMixin, forms.Form):
     def clean(self):
         cleaned_data = super().clean()
 
+        if not get_workers_for_queue('default'):
+            raise ValidationError(
+                "No RQ workers operating on the 'default' queue are currently active in the environment."
+            )
+
         if cleaned_data["deployment"] == "cluster":
             if cleaned_data["node_count"] == "1":
                 raise ValidationError({"node_count": "Node count must be greater than 1 for a cluster deployment."})
@@ -243,6 +260,11 @@ class NetBoxDBBackupForm(NetBoxModelForm):
 
     def clean(self):
         super().clean()
+
+        if not get_workers_for_queue('default'):
+            raise ValidationError(
+                "No RQ workers operating on the 'default' queue are currently active in the environment."
+            )
 
         if db_password := self.cleaned_data.get("db_password"):
             self.instance._db_password = db_password
@@ -305,6 +327,18 @@ class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
                 self.fields["configuration"].initial = disabled_plugins.get(plugin_name, {})
 
     def clean(self):
+        if not get_workers_for_queue('default'):
+            raise ValidationError(
+                "No RQ workers operating on the 'default' queue are currently active in the environment."
+            )
+
+        instance = NetBoxConfiguration.objects.first()
+        env = instance.get_env()
+
+        # Ensure no actions are currently running on the environment
+        if env.get_actions():
+            raise ValidationError("There are currently actions running on the environment.")
+
         plugins = get_plugins_list()
         plugin = plugins.get(self.cleaned_data.get("name"))
         selected_version = self.cleaned_data.get("version")
@@ -375,7 +409,7 @@ class NetBoxUpgradeForm(BootstrapMixin, forms.Form):
 
         # Ensure no actions are currently running on the environment
         if env.get_actions():
-            raise ValidationError({"version": "There are currently actions running on the environment."})
+            raise ValidationError("There are currently actions running on the environment.")
 
 
 class ConfirmationForm(_ConfirmationForm):
