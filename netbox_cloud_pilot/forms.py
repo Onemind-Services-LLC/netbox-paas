@@ -388,7 +388,7 @@ class NetBoxUpgradeForm(BootstrapMixin, forms.Form):
         instance = NetBoxConfiguration.objects.first()
         env = instance.get_env()
 
-        versions = env.get_upgrades()
+        versions = env.get_upgrades(include_patch=True)
         self.fields["version"].choices = [(str(version), str(version)) for version in versions]
 
     def clean(self):

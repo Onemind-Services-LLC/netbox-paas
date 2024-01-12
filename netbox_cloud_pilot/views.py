@@ -278,10 +278,19 @@ class NetBoxPluginListView(View):
             plugins = utils.get_plugins_list()
             for plugin_name, _ in plugins.items():
                 if plugin_name in installed_plugins:
+                    plugin_version = metadata(plugin_name).get("Version")
+                    if upgrade_available := utils.is_upgrade_available(plugins[plugin_name], plugin_version):
+                        plugins[plugin_name].update(
+                            {
+                                "upgrade_available": upgrade_available,
+                                "latest_version": utils.filter_releases(plugins[plugin_name])[0],
+                            }
+                        )
+
                     plugins[plugin_name].update(
                         {
                             "installed": True,
-                            "current_version": metadata(plugin_name).get("Version"),
+                            "current_version": plugin_version,
                         }
                     )
                 if plugin_name in disabled_plugins:

@@ -6,7 +6,7 @@ from django.utils.safestring import mark_safe
 
 from .constants import NETBOX_JPS_REPO
 
-__all__ = ("get_plugins_list", "filter_releases", "job_msg")
+__all__ = ("get_plugins_list", "filter_releases", "job_msg", "is_upgrade_available")
 
 
 def get_plugins_list():
@@ -52,6 +52,19 @@ def filter_releases(plugin, version: str = None):
         return sorted(compatible_releases, key=semver.parse_version_info, reverse=True)
     except ValueError:
         return compatible_releases
+
+
+def is_upgrade_available(plugin, plugin_version: str):
+    """
+    Check if a newer version of the plugin is available.
+    """
+    releases = filter_releases(plugin, settings.VERSION)
+    if not releases:
+        return False
+
+    # Check if the latest release is newer than the current version
+    latest_release = releases[0]
+    return semver.compare(latest_release, plugin_version) > 0
 
 
 def job_msg(job):

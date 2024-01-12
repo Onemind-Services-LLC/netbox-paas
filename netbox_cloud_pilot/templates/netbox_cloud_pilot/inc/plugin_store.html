@@ -8,7 +8,13 @@
             <span class="mdi mdi-star" title="Stars">{{ plugin.stars }}</span>
 
             {% if plugin.installed %}
+                <span class="separator">&middot;</span>
                 <span class="mdi mdi-check-circle" title="Installed"></span> v{{ plugin.current_version }}
+            {% endif %}
+
+            {% if plugin.upgrade_available %}
+                <span class="separator">&middot;</span>
+                <span class="mdi mdi-arrow-up-bold" title="Upgrade available"></span> v{{ plugin.latest_version }}
             {% endif %}
         </div>
         <div class="card-body text-center">
