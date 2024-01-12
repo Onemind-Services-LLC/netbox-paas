@@ -9,7 +9,7 @@ with open(readme) as fh:
 
 setup(
     name="netbox-cloud-pilot",
-    version="0.1.7",
+    version="0.1.8",
     description="Enhances NetBox on CloudMyDC's VAP with advanced management and control features.",
     long_description=long_description,
     long_description_content_type="text/markdown",
