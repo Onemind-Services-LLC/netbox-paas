@@ -189,15 +189,6 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
             file_content = ""
 
             if section is not None:
-                file_path = f"/etc/netbox/config/{slugify(section)}.py"
-                # Delete the file
-                env.client.environment.File.Delete(
-                    env_name=self.env_name,
-                    path=file_path,
-                    node_group=NODE_GROUP_CP,
-                    master_only=True,
-                )
-
                 # Construct the file content
                 for key, value in params.items():
                     if value:
@@ -209,16 +200,17 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
                             else:
                                 file_content += f"{key} = {value}\n"
 
-                if file_content:
-                    logger.debug(f"Writing file: {file_path}")
-                    # Create the section file
-                    env.client.environment.File.Write(
-                        env_name=self.env_name,
-                        path=file_path,
-                        body=file_content,
-                        node_group=NODE_GROUP_CP,
-                        master_only=True,
-                    )
+                file_path = f"/etc/netbox/config/extra.py"
+                logger.debug(f"Writing file: {file_path}")
+                # Create the section file
+                env.client.environment.File.Write(
+                    env_name=self.env_name,
+                    path=file_path,
+                    body=file_content,
+                    node_group=NODE_GROUP_CP,
+                    master_only=True,
+                    is_append_mode=False,
+                )
 
         # Schedule a restart of the NetBox environment
         self.schedule_restart()
