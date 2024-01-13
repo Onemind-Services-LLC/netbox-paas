@@ -200,7 +200,7 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
                             else:
                                 file_content += f"{key} = {value}\n"
 
-                file_path = f"/etc/netbox/config/{slugify(section)}.py"
+                file_path = f"/etc/netbox/config/extra.py"
                 logger.debug(f"Writing file: {file_path}")
                 # Create the section file
                 env.client.environment.File.Write(
