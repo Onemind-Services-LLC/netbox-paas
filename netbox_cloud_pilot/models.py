@@ -185,9 +185,8 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
                     env.add_env_vars(node_group_name, vars)
 
         # Update the files on the NODE_GROUP_CP with named sections
+        file_content = ""
         for section, params in data.items():
-            file_content = ""
-
             if section is not None:
                 # Construct the file content
                 for key, value in params.items():
@@ -200,17 +199,17 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
                             else:
                                 file_content += f"{key} = {value}\n"
 
-                file_path = f"/etc/netbox/config/extra.py"
-                logger.debug(f"Writing file: {file_path}")
-                # Create the section file
-                env.client.environment.File.Write(
-                    env_name=self.env_name,
-                    path=file_path,
-                    body=file_content,
-                    node_group=NODE_GROUP_CP,
-                    master_only=True,
-                    is_append_mode=False,
-                )
+        file_path = f"/etc/netbox/config/extra.py"
+        logger.debug(f"Writing file: {file_path}")
+        # Create the section file
+        env.client.environment.File.Write(
+            env_name=self.env_name,
+            path=file_path,
+            body=file_content,
+            node_group=NODE_GROUP_CP,
+            master_only=True,
+            is_append_mode=False,
+        )
 
         # Schedule a restart of the NetBox environment
         self.schedule_restart()
