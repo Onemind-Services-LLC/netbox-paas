@@ -530,12 +530,15 @@ class IaaSNetBox(IaaS):
     ):
         master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
         activate_env = "source /opt/netbox/venv/bin/activate"
+        # Get all node IDs for the NetBox node groups
+        node_ids = [
+            node["id"]
+            for node_group in self.get_nb_node_groups()
+            for node in self.get_nodes(node_group=node_group["name"], is_master=False)
+        ]
 
         # Install the plugin version
         if plugin.get("private"):
-            # Ensure `git` is installed
-            self.execute_cmd(master_node_id, "apt-get install -y git")
-
             github_url = plugin.get("github_url")
             github_url = github_url.replace("https://github.com", f"git+https://{github_token}@github.com")
 
@@ -548,17 +551,13 @@ class IaaSNetBox(IaaS):
             self.write_requirements(req)
 
             if install:
-                # Get all node IDs for the NetBox node groups
-                node_ids = [
-                    node["id"]
-                    for node_group in self.get_nb_node_groups()
-                    for node in self.get_nodes(node_group=node_group["name"], is_master=False)
-                ]
+                if plugin.get("private"):
+                    # Ensure `git` is installed on every node
+                    [self.execute_cmd(node_id, "apt-get install -y git") for node_id in node_ids]
 
                 # Install the plugin
                 cmd = f'{activate_env} && pip install -r {self.NETBOX_DIR}/plugin_requirements.txt'
-                for node_id in node_ids:
-                    self.execute_cmd(node_id, cmd)
+                [self.execute_cmd(node_id, cmd) for node_id in node_ids]
 
         plugins = self.load_plugins()
         disabled_plugins = self.load_plugins(file_name=DISABLED_PLUGINS_FILE_NAME)
