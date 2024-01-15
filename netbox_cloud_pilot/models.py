@@ -96,6 +96,10 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
             if not self.license.startswith("ghp_") and not self.license.startswith("github_pat_"):
                 raise ValidationError({"license": "Invalid license key"})
 
+    @property
+    def is_enterprise(self):
+        return bool(self.license)
+
     @lru_cache(maxsize=2)
     def iaas(self, env_name, auto_init=True):
         return IaaSNetBox(
