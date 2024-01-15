@@ -76,35 +76,37 @@
                 </div>
             </div>
         </div>
-        <div class="col col-md-6">
-            <div class="card">
-                <h5 class="card-header">NetBox Admin Access</h5>
-                <div class="card-body">
-                    <table class="table table-hover attr-table">
-                        <tr>
-                            <th scope="row">URL</th>
-                            <td>
-                                <a href="{{ object.netbox_admin.url }}" target="_blank">
-                                    {{ object.netbox_admin.url }}
-                                </a>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th scope="row">Superuser Email</th>
-                            <td>{{ object.netbox_admin.SUPERUSER_EMAIL }}</td>
-                        </tr>
-                        <tr>
-                            <th scope="row">Superuser Username</th>
-                            <td>{{ object.netbox_admin.SUPERUSER_NAME }}</td>
-                        </tr>
-                        <tr>
-                            <th scope="row">Superuser Password</th>
-                            <td>{{ object.netbox_admin.SUPERUSER_PASSWORD }}</td>
-                        </tr>
-                    </table>
+        {% if perms.netbox_cloud_pilot.admin_netboxconfiguration %}
+            <div class="col col-md-6">
+                <div class="card">
+                    <h5 class="card-header">NetBox Admin Access</h5>
+                    <div class="card-body">
+                        <table class="table table-hover attr-table">
+                            <tr>
+                                <th scope="row">URL</th>
+                                <td>
+                                    <a href="{{ object.netbox_admin.url }}" target="_blank">
+                                        {{ object.netbox_admin.url }}
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Superuser Email</th>
+                                <td>{{ object.netbox_admin.SUPERUSER_EMAIL }}</td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Superuser Username</th>
+                                <td>{{ object.netbox_admin.SUPERUSER_NAME }}</td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Superuser Password</th>
+                                <td>{{ object.netbox_admin.SUPERUSER_PASSWORD }}</td>
+                            </tr>
+                        </table>
+                    </div>
                 </div>
             </div>
-        </div>
+        {% endif %}
     </div>
     <div class="row mb-3">
         <div class="col col-md-6">
