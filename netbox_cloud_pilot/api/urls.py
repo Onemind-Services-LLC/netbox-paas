@@ -7,5 +7,6 @@ app_name = "netbox_cloud_pilot"
 router = NetBoxRouter()
 router.register("configurations", views.NetBoxConfigurationViewSet)
 router.register("db-backups", views.NetBoxDBBackupViewSet)
+router.register("plugins", views.NetBoxPluginViewSet, basename="plugins")
 
 urlpatterns = router.urls

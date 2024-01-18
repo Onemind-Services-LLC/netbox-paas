@@ -33,12 +33,12 @@ def is_compatible(netbox_version, min_version, max_version):
     return True
 
 
-def filter_releases(plugin, version: str = None):
+def filter_releases(plugin, netbox_version: str = None):
     """
     Filter the releases based on the NetBox version.
     """
     compatible_releases = []
-    version = version or settings.VERSION
+    version = netbox_version or settings.VERSION
 
     for release in plugin.get("releases", []):
         netbox = release.get("netbox")
