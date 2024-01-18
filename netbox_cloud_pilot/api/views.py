@@ -1,3 +1,4 @@
+from django.conf import settings
 from drf_spectacular.utils import extend_schema
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from rest_framework.viewsets import ViewSet
@@ -55,7 +56,9 @@ class NetBoxPluginViewSet(ViewSet):
         for plugin_id, plugin in self.plugins.items():
             plugins_list.append({**plugin, 'plugin_id': plugin_id})
 
-        data = NetBoxPluginSerializer(plugins_list, many=True, context={'plugins': self.plugins}).data
+        data = NetBoxPluginSerializer(
+            plugins_list, many=True, context={'plugins': self.plugins, 'request': request}
+        ).data
         return Response({'results': data})
 
     @extend_schema(
@@ -81,7 +84,7 @@ class NetBoxPluginViewSet(ViewSet):
                 **plugin,
                 'plugin_id': pk,
             },
-            context={'plugins': self.plugins},
+            context={'plugins': self.plugins, 'request': request},
         ).data
         return Response(data)
 
@@ -99,11 +102,13 @@ class NetBoxPluginViewSet(ViewSet):
         ],
     )
     def update(self, request, pk=None):
-        self.check_actions()
-
         plugin = self.plugins.get(pk)
-        serializer = NetBoxPluginInstallSerializer(data=request.data, context={'plugins': self.plugins})
+        serializer = NetBoxPluginInstallSerializer(
+            data=request.data, context={'plugins': self.plugins, 'request': request}
+        )
         serializer.is_valid(raise_exception=True)
+
+        self.check_actions()
 
         job = self.netbox_configuration.enqueue(
             self.netbox_configuration.get_env().install_plugin,
@@ -114,7 +119,7 @@ class NetBoxPluginViewSet(ViewSet):
             github_token=self.netbox_configuration.license,
         )
 
-        return Response(JobSerializer(job).data)
+        return Response(JobSerializer(job, context={'request': request}).data)
 
     @extend_schema(
         responses={200: JobSerializer},
@@ -129,11 +134,14 @@ class NetBoxPluginViewSet(ViewSet):
         ],
     )
     def destroy(self, request, pk=None):
-        self.check_actions()
-
         plugin = self.plugins.get(pk)
         if not plugin:
             raise ValidationError("Plugin not found.")
+
+        if plugin['app_label'] not in settings.PLUGINS:
+            raise ValidationError(f"Plugin {pk} is not installed.")
+
+        self.check_actions()
 
         job = self.netbox_configuration.enqueue(
             self.netbox_configuration.get_env().uninstall_plugin,
@@ -141,19 +149,19 @@ class NetBoxPluginViewSet(ViewSet):
             plugin=plugin,
         )
 
-        return Response(JobSerializer(job).data)
+        return Response(JobSerializer(job, context={'request': request}).data)
 
     @extend_schema(
         request=NetBoxPluginInstallSerializer,
         responses={200: JobSerializer},
     )
     def create(self, request):
-        self.check_actions()
-
         serializer = NetBoxPluginInstallSerializer(
             data=request.data, context={'plugins': self.plugins, 'request': request}
         )
         serializer.is_valid(raise_exception=True)
+
+        self.check_actions()
 
         plugin = self.plugins.get(serializer.validated_data["plugin_id"])
         job = self.netbox_configuration.enqueue(
