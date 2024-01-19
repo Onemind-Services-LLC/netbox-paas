@@ -59,7 +59,7 @@ class NetBoxPluginViewSet(ViewSet):
         data = NetBoxPluginSerializer(
             plugins_list, many=True, context={'plugins': self.plugins, 'request': request}
         ).data
-        return Response({'results': data})
+        return Response({'results': data, 'count': len(data)})
 
     @extend_schema(
         responses={200: NetBoxPluginSerializer},

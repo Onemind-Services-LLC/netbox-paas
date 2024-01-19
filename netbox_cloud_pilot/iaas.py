@@ -761,6 +761,7 @@ class IaaSNetBox(IaaS):
         """
         activate_env = "source /opt/netbox/venv/bin/activate"
         master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
+        env_app_id = self.get_env().get("appid")
 
         if addon := self.get_installed_addon(app_id="db-backup", node_group=NODE_GROUP_SQLDB):
             self.db_backup(app_unique_name=addon.get("uniqueName"))
@@ -836,7 +837,7 @@ class IaaSNetBox(IaaS):
 
         batch_request = {
             "alias": {"m": "Dev.Scripting.EvalCode"},
-            "global": {"appid": "cluster", "session": self.client._token, "type": "js", "code": redeploy_script},
+            "global": {"appid": env_app_id, "session": self.client._token, "type": "js", "code": redeploy_script},
             "methods": [],
         }
 
