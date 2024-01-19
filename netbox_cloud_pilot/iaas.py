@@ -338,6 +338,9 @@ class IaaS(IaaSJob):
         """
         Restart nodes for a list of node groups.
         """
+        # Sort the node groups in ascending order
+        node_groups = sorted(node_groups)
+
         results = []
 
         logger.debug(f"Restarting nodes for node groups {', '.join(node_groups)}")
@@ -348,7 +351,7 @@ class IaaS(IaaSJob):
                 var c = jelastic.environment.control, e = envName, s = session, r, resp;
                 resp = c.GetEnvInfo(e, s);
                 if (resp.result != 0) return resp;
-                r = c.RestartNodes({ envName: e, session: s, nodeGroup: nodeGroup, isSequential: true, manageDnsState: true, delay: 30000 });
+                r = c.RestartNodes({ envName: e, session: s, nodeGroup: nodeGroup, isSequential: true, manageDnsState: true, delay: 60000 });
                 if (r.result != 0) return r;
                 return { result: 0, message: 'Restarted ' + nodeGroup}
                 """
@@ -358,7 +361,7 @@ class IaaS(IaaSJob):
                     code=script_code,
                     description=f"Restart {node_group} nodes",
                     params={"envName": self.env_name, "nodeGroup": node_group},
-                    delay=delay,
+                    delay=delay if node_group == NODE_GROUP_CP else delay * 10,
                 )
                 results.append(task_result)
 
