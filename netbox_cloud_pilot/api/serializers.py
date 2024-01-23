@@ -34,6 +34,7 @@ class NetBoxConfigurationSerializer(NetBoxModelSerializer):
     )
     license = serializers.CharField(
         write_only=True,
+        allow_blank=True
     )
 
     class Meta:
