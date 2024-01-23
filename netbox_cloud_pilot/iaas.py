@@ -307,24 +307,22 @@ class IaaS(IaaSJob):
         """
         Run a script.
         """
-        app_id = self.get_env().get("appid")
         delay = delay * 1000
 
         try:
             result = self.client.development.Scripting.GetScripts(
-                app_id=app_id,
                 type="js",
             )
             scripts = result.get("scripts", [])
             for script in scripts:
                 if script.get("name") == name:
                     logger.debug(f"Deleting existing script {name}")
-                    self.client.development.Scripting.DeleteScript(app_id=app_id, name=name)
+                    self.client.development.Scripting.DeleteScript(name=name)
                     continue
         except JelasticApiError as e:
             logger.error(e)
 
-        self.client.development.Scripting.CreateScript(app_id=app_id, name=name, type="js", code=code)
+        self.client.development.Scripting.CreateScript(name=name, type="js", code=code)
 
         return self.client.utils.Scheduler.CreateEnvTask(
             env_name=self.env_name,
@@ -420,7 +418,7 @@ class IaaS(IaaSJob):
         logger.info(f"Installing addon {app_id}")
         return self.client.marketplace.App.InstallAddon(
             env_name=self.env_name,
-            app_id=app_id,
+            id=app_id,
             settings=addon_settings,
             node_group=node_group,
         )
@@ -603,7 +601,6 @@ class IaaSNetBox(IaaS):
             self.dump_plugins(disabled_plugins, file_name=DISABLED_PLUGINS_FILE_NAME)
 
         # Uninstall the plugin from the virtual environment
-        master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
         activate_env = "source /opt/netbox/venv/bin/activate"
 
         req = self.get_requirements_parser()
@@ -758,7 +755,7 @@ class IaaSNetBox(IaaS):
 
         return True, ""
 
-    def upgrade(self, version, license=None):
+    def upgrade(self, version, lic=None):
         """
         Upgrade NetBox.
         """
@@ -777,7 +774,7 @@ class IaaSNetBox(IaaS):
                     plugin=plugin,
                     version=plugin_version,
                     plugin_settings=settings.PLUGINS_CONFIG.get(plugin.get('app_label'), {}),
-                    github_token=license,
+                    github_token=lic,
                     restart=False,
                     collectstatic=False,  # Do not run during upgrade as it may crash due to version incompatibility
                     install=False,  # Do not install the plugin as it will be installed during the upgrade
