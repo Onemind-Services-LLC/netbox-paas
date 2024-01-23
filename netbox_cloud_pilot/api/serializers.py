@@ -32,10 +32,7 @@ class NetBoxConfigurationSerializer(NetBoxModelSerializer):
     key = serializers.CharField(
         write_only=True,
     )
-    license = serializers.CharField(
-        write_only=True,
-        allow_blank=True
-    )
+    license = serializers.CharField(write_only=True, allow_blank=True)
 
     class Meta:
         model = NetBoxConfiguration
