@@ -307,22 +307,24 @@ class IaaS(IaaSJob):
         """
         Run a script.
         """
+        app_id = self.get_env().get("appid")
         delay = delay * 1000
 
         try:
             result = self.client.development.Scripting.GetScripts(
+                app_id=app_id,
                 type="js",
             )
             scripts = result.get("scripts", [])
             for script in scripts:
                 if script.get("name") == name:
                     logger.debug(f"Deleting existing script {name}")
-                    self.client.development.Scripting.DeleteScript(name=name)
+                    self.client.development.Scripting.DeleteScript(app_id=app_id, name=name)
                     continue
         except JelasticApiError as e:
             logger.error(e)
 
-        self.client.development.Scripting.CreateScript(name=name, type="js", code=code)
+        self.client.development.Scripting.CreateScript(app_id=app_id, name=name, type="js", code=code)
 
         return self.client.utils.Scheduler.CreateEnvTask(
             env_name=self.env_name,
