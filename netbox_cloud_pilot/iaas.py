@@ -2,6 +2,7 @@ import logging
 import time
 from functools import lru_cache
 from typing import Tuple
+from uuid import uuid4
 
 import requests
 import yaml
@@ -480,7 +481,9 @@ class IaaSNetBox(IaaS):
         master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
 
         try:
-            plugins_yaml = self.execute_cmd(master_node_id, f"cat {self.NETBOX_DIR}/config/{file_name}")[0].get(
+            self.client._ruk = str(uuid4())
+            file_path = f"{self.NETBOX_DIR}/config/{file_name}"
+            plugins_yaml = self.execute_cmd(master_node_id, f"cat {file_path}")[0].get(
                 "out", ""
             )
         except JelasticApiError:
@@ -513,6 +516,7 @@ class IaaSNetBox(IaaS):
     def write_requirements(self, req: RequirementsParser):
         master_node_id = self.get_master_node(NODE_GROUP_CP).get('id')
         requirements_str = req.dumps()
+        self.client._ruk = str(uuid4())
         return self.client.environment.File.Write(
             env_name=self.env_name,
             node_id=master_node_id,
