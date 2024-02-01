@@ -535,7 +535,6 @@ class IaaSNetBox(IaaS):
         collectstatic: bool = True,
         install: bool = True,
     ):
-        master_node_id = self.get_master_node(NODE_GROUP_CP).get("id")
         activate_env = "source /opt/netbox/venv/bin/activate"
         # Get all node IDs for the NetBox node groups
         node_ids = [
@@ -577,11 +576,13 @@ class IaaSNetBox(IaaS):
         self.dump_plugins(plugins)
 
         if collectstatic:
+            # Get Node IDs for the CP node group
+            cp_node_ids = [node["id"] for node in self.get_nodes(node_group=NODE_GROUP_CP, is_master=False)]
             # Run collectstatic command
-            self.execute_cmd(
-                node_id=master_node_id,
+            [self.execute_cmd(
+                node_id=node_id,
                 command=f"{activate_env} && /opt/netbox/netbox/manage.py collectstatic --no-input --clear 1>/dev/null",
-            )
+            ) for node_id in cp_node_ids]
 
         if restart:
             return self.restart_nodes(
