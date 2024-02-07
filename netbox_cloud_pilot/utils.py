@@ -64,6 +64,7 @@ def is_upgrade_available(plugin, plugin_version: str):
 
     # Check if the latest release is newer than the current version
     latest_release = releases[0]
+    latest_release = latest_release.lstrip("v")
     return semver.compare(latest_release, plugin_version) > 0
 
 
