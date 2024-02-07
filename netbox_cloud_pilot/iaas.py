@@ -481,9 +481,7 @@ class IaaSNetBox(IaaS):
 
         try:
             file_path = f"{self.NETBOX_DIR}/config/{file_name}"
-            plugins_yaml = self.execute_cmd(master_node_id, f"cat {file_path}")[0].get(
-                "out", ""
-            )
+            plugins_yaml = self.execute_cmd(master_node_id, f"cat {file_path}")[0].get("out", "")
         except JelasticApiError:
             plugins_yaml = ""
 
@@ -576,10 +574,13 @@ class IaaSNetBox(IaaS):
             # Get Node IDs for the CP node group
             cp_node_ids = [node["id"] for node in self.get_nodes(node_group=NODE_GROUP_CP, is_master=False)]
             # Run collectstatic command
-            [self.execute_cmd(
-                node_id=node_id,
-                command=f"{activate_env} && /opt/netbox/netbox/manage.py collectstatic --no-input --clear 1>/dev/null",
-            ) for node_id in cp_node_ids]
+            [
+                self.execute_cmd(
+                    node_id=node_id,
+                    command=f"{activate_env} && /opt/netbox/netbox/manage.py collectstatic --no-input --clear 1>/dev/null",
+                )
+                for node_id in cp_node_ids
+            ]
 
         if restart:
             return self.restart_nodes(
