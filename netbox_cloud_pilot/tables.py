@@ -23,6 +23,9 @@ class NetBoxBackupsTable(tables.Table):
         orderable=False,
         verbose_name="Date/Time",
     )
+    timezone = tables.Column(
+        orderable=False,
+    )
 
     backup_type = columns.TemplateColumn(
         template_code="""{{ record.backup_type|title }}""",
@@ -42,7 +45,7 @@ class NetBoxBackupsTable(tables.Table):
     )
 
     class Meta:
-        fields = ("name", "datetime", "backup_type", "db_version", "actions")
+        fields = ("name", "datetime", "timezone", "backup_type", "db_version", "actions")
         attrs = {
             "class": "table table-hover object-list",
         }
