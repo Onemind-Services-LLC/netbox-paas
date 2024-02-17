@@ -371,8 +371,9 @@ class NetBoxDBBackup(ChangeLoggedModel):
 
         # Parse the time from the second part
         parts = parts[1].split("-", 1)
+        timestamp, timezone = parts[0].split("_")
         # Parse the time from the first part
-        time = datetime.fromtimestamp(int(parts[0])).time()
+        time = datetime.fromtimestamp(int(timestamp)).time()
 
         # Combine the date and time
         date = datetime.combine(date, time)
@@ -387,6 +388,7 @@ class NetBoxDBBackup(ChangeLoggedModel):
         return {
             "name": backup_name,
             "datetime": date,
+            "timezone": timezone,
             "backup_type": backup_type,
             "db_version": db_version,
         }
