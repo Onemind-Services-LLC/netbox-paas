@@ -44,7 +44,6 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - test
-      - release_notify
     timeout-minutes: 30
     if: github.ref_protected != 'true'
     steps:
