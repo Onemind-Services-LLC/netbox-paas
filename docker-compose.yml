@@ -10,7 +10,7 @@ services:
       - redis
     env_file: env/netbox.env
     environment:
-      ENV_NAME: netbox-cloud-pilot
+      ENV_NAME: netbox-paas
     volumes:
       - ./configuration:/etc/netbox/config:z,ro
 
