@@ -5,7 +5,7 @@ from netbox.tables import columns
 __all__ = ("NetBoxBackupsTable",)
 
 RESTORE_BUTTON = """
-<form method="post" action="{% url 'plugins:netbox_cloud_pilot:netboxdbbackup_restore' pk=object.pk %}">
+<form method="post" action="{% url 'plugins:netbox_paas:netboxdbbackup_restore' pk=object.pk %}">
   {% csrf_token %}
   <input type="hidden" name="name" value="{{ record.name }}">
   <button type="submit" class="btn btn-sm btn-warning">

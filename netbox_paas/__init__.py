@@ -3,7 +3,7 @@ from importlib.metadata import metadata
 
 from extras.plugins import PluginConfig
 
-metadata = metadata("netbox_cloud_pilot")
+metadata = metadata("netbox_paas")
 
 
 class NetBoxCloudPilot(PluginConfig):

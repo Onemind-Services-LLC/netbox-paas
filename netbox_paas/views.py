@@ -25,9 +25,9 @@ class NetBoxConfigurationListView(generic.ObjectListView):
 
     def get(self, request):
         if obj := models.NetBoxConfiguration.objects.first():
-            return redirect("plugins:netbox_cloud_pilot:netboxconfiguration", pk=obj.pk)
+            return redirect("plugins:netbox_paas:netboxconfiguration", pk=obj.pk)
 
-        return redirect("plugins:netbox_cloud_pilot:netboxconfiguration_add")
+        return redirect("plugins:netbox_paas:netboxconfiguration_add")
 
 
 @register_model_view(models.NetBoxConfiguration, "edit")
@@ -39,7 +39,7 @@ class NetBoxConfigurationEditView(generic.ObjectEditView):
 @register_model_view(models.NetBoxConfiguration, "logs")
 class NetBoxNodeLog(PermissionRequiredMixin, View):
     def get_permission_required(self):
-        return ["netbox_cloud_pilot.view_netboxconfiguration"]
+        return ["netbox_paas.view_netboxconfiguration"]
 
     def post(self, request, pk):
         """
@@ -55,7 +55,7 @@ class NetBoxNodeLog(PermissionRequiredMixin, View):
         logs = iaas.get_node_log(node_id)
         return render(
             request,
-            "netbox_cloud_pilot/nodelogs.html",
+            "netbox_paas/nodelogs.html",
             {
                 "object": instance,
                 "env_name": env_name,
@@ -68,7 +68,7 @@ class NetBoxNodeLog(PermissionRequiredMixin, View):
 @register_model_view(models.NetBoxConfiguration, "settings")
 class NetBoxSettingsView(PermissionRequiredMixin, GetReturnURLMixin, View):
     def get_permission_required(self):
-        return ["netbox_cloud_pilot.change_netboxconfiguration"]
+        return ["netbox_paas.change_netboxconfiguration"]
 
     def get(self, request, *args, **kwargs):
         obj = get_object_or_404(models.NetBoxConfiguration, pk=kwargs["pk"])
@@ -82,7 +82,7 @@ class NetBoxSettingsView(PermissionRequiredMixin, GetReturnURLMixin, View):
                 "object": obj,
                 "form": form,
                 "return_url": reverse(
-                    "plugins:netbox_cloud_pilot:netboxconfiguration",
+                    "plugins:netbox_paas:netboxconfiguration",
                     kwargs={"pk": obj.pk},
                 ),
             },
@@ -116,7 +116,7 @@ class NetBoxSettingsView(PermissionRequiredMixin, GetReturnURLMixin, View):
 @register_model_view(models.NetBoxConfiguration, "restart")
 class NetBoxRestartView(PermissionRequiredMixin, View):
     def get_permission_required(self):
-        return ["netbox_cloud_pilot.change_netboxconfiguration"]
+        return ["netbox_paas.change_netboxconfiguration"]
 
     def post(self, request, pk):
         """
@@ -131,13 +131,13 @@ class NetBoxRestartView(PermissionRequiredMixin, View):
             node_groups=[node_group],
         )
         messages.success(request, utils.job_msg(job))
-        return redirect("plugins:netbox_cloud_pilot:netboxconfiguration", pk=instance.pk)
+        return redirect("plugins:netbox_paas:netboxconfiguration", pk=instance.pk)
 
 
 @register_model_view(models.NetBoxConfiguration, "backup_storage", path="backup-storage")
 class NetBoxStorageView(PermissionRequiredMixin, GetReturnURLMixin, View):
     def get_permission_required(self):
-        return ["netbox_cloud_pilot.view_netboxconfiguration"]
+        return ["netbox_paas.view_netboxconfiguration"]
 
     def get(self, request, *args, **kwargs):
         obj = get_object_or_404(models.NetBoxConfiguration, pk=kwargs["pk"])
@@ -151,7 +151,7 @@ class NetBoxStorageView(PermissionRequiredMixin, GetReturnURLMixin, View):
                 "object": obj,
                 "form": form,
                 "return_url": reverse(
-                    "plugins:netbox_cloud_pilot:netboxconfiguration",
+                    "plugins:netbox_paas:netboxconfiguration",
                     kwargs={"pk": obj.pk},
                 ),
             },
@@ -214,9 +214,9 @@ class NetBoxDBBackupListView(generic.ObjectListView):
 
     def get(self, request):
         if obj := models.NetBoxDBBackup.objects.first():
-            return redirect("plugins:netbox_cloud_pilot:netboxdbbackup", pk=obj.pk)
+            return redirect("plugins:netbox_paas:netboxdbbackup", pk=obj.pk)
 
-        return redirect("plugins:netbox_cloud_pilot:netboxdbbackup_add")
+        return redirect("plugins:netbox_paas:netboxdbbackup_add")
 
 
 @register_model_view(models.NetBoxDBBackup, "edit")
@@ -233,7 +233,7 @@ class NetBoxDBBackupDeleteView(generic.ObjectDeleteView):
 @register_model_view(models.NetBoxDBBackup, "backup")
 class NetBoxDBBackupBackupView(PermissionRequiredMixin, View):
     def get_permission_required(self):
-        return ["netbox_cloud_pilot.change_netboxdbbackup"]
+        return ["netbox_paas.change_netboxdbbackup"]
 
     def post(self, request, pk):
         """
@@ -249,7 +249,7 @@ class NetBoxDBBackupBackupView(PermissionRequiredMixin, View):
 @register_model_view(models.NetBoxDBBackup, "restore")
 class NetBoxDBBackupRestoreView(PermissionRequiredMixin, View):
     def get_permission_required(self):
-        return ["netbox_cloud_pilot.change_netboxdbbackup"]
+        return ["netbox_paas.change_netboxdbbackup"]
 
     def post(self, request, pk):
         """
@@ -260,7 +260,7 @@ class NetBoxDBBackupRestoreView(PermissionRequiredMixin, View):
 
         job = instance.restore(request, backup_name)
         messages.success(request, utils.job_msg(job))
-        return redirect("plugins:netbox_cloud_pilot:netboxdbbackup", pk=instance.pk)
+        return redirect("plugins:netbox_paas:netboxdbbackup", pk=instance.pk)
 
 
 class NetBoxPluginListView(View):
@@ -324,12 +324,12 @@ class NetBoxPluginListView(View):
 
             return render(
                 request,
-                "netbox_cloud_pilot/plugins_store.html",
+                "netbox_paas/plugins_store.html",
                 {"object": nc, "plugins": plugins},
             )
 
         messages.error(request, "You must configure NetBox first.")
-        return redirect("plugins:netbox_cloud_pilot:netboxconfiguration_add")
+        return redirect("plugins:netbox_paas:netboxconfiguration_add")
 
 
 @register_model_view(models.NetBoxConfiguration, "upgrades")
@@ -338,7 +338,7 @@ class NetBoxPluginUpgradesView(PermissionRequiredMixin, GetReturnURLMixin, View)
     form = forms.NetBoxUpgradeForm
 
     def get_permission_required(self):
-        return ["netbox_cloud_pilot.change_netboxconfiguration"]
+        return ["netbox_paas.change_netboxconfiguration"]
 
     def get(self, request, pk, *args, **kwargs):
         obj = get_object_or_404(models.NetBoxConfiguration, pk=pk)
@@ -440,7 +440,7 @@ class NetBoxPluginInstallView(generic.ObjectEditView):
 @register_model_view(models.NetBoxConfiguration, "plugin_uninstall", path="plugin-uninstall")
 class NetBoxPluginUninstallView(generic.ObjectDeleteView):
     queryset = models.NetBoxConfiguration.objects.all()
-    template_name = "netbox_cloud_pilot/plugin_uninstall.html"
+    template_name = "netbox_paas/plugin_uninstall.html"
 
     def get(self, request, *args, **kwargs):
         obj = self.get_object(**kwargs)
@@ -448,7 +448,7 @@ class NetBoxPluginUninstallView(generic.ObjectDeleteView):
 
         if plugin is None:
             messages.error(request, "Plugin not found.")
-            return redirect("plugins:netbox_cloud_pilot:netboxplugin_list")
+            return redirect("plugins:netbox_paas:netboxplugin_list")
 
         form = forms.ConfirmationForm(initial=request.GET)
 
@@ -489,7 +489,7 @@ class NetBoxPluginUninstallView(generic.ObjectDeleteView):
 @register_model_view(models.NetBoxConfiguration, "plugin_enable", path="plugin-enable")
 class NetBoxPluginEnableView(generic.ObjectDeleteView):
     queryset = models.NetBoxConfiguration.objects.all()
-    template_name = "netbox_cloud_pilot/plugin_enable.html"
+    template_name = "netbox_paas/plugin_enable.html"
 
     def get(self, request, *args, **kwargs):
         obj = self.get_object(**kwargs)
@@ -497,7 +497,7 @@ class NetBoxPluginEnableView(generic.ObjectDeleteView):
 
         if plugin is None:
             messages.error(request, "Plugin not found.")
-            return redirect("plugins:netbox_cloud_pilot:netboxplugin_list")
+            return redirect("plugins:netbox_paas:netboxplugin_list")
 
         form = forms.ConfirmationForm(initial=request.GET)
 
@@ -538,7 +538,7 @@ class NetBoxPluginEnableView(generic.ObjectDeleteView):
 @register_model_view(models.NetBoxConfiguration, "plugin_disable", path="plugin-disable")
 class NetBoxPluginDisableView(generic.ObjectDeleteView):
     queryset = models.NetBoxConfiguration.objects.all()
-    template_name = "netbox_cloud_pilot/plugin_disable.html"
+    template_name = "netbox_paas/plugin_disable.html"
 
     def get(self, request, *args, **kwargs):
         obj = self.get_object(**kwargs)
@@ -546,7 +546,7 @@ class NetBoxPluginDisableView(generic.ObjectDeleteView):
 
         if plugin is None:
             messages.error(request, "Plugin not found.")
-            return redirect("plugins:netbox_cloud_pilot:netboxplugin_list")
+            return redirect("plugins:netbox_paas:netboxplugin_list")
 
         form = forms.ConfirmationForm(initial=request.GET)
 

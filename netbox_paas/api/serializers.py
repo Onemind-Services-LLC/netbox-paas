@@ -20,7 +20,7 @@ __all__ = [
 
 class NetBoxConfigurationSerializer(NetBoxModelSerializer):
     url = serializers.HyperlinkedIdentityField(
-        view_name="plugins-api:netbox_cloud_pilot-api:netboxconfiguration-detail"
+        view_name="plugins-api:netbox_paas-api:netboxconfiguration-detail"
     )
 
     env_name = serializers.CharField(
@@ -55,7 +55,7 @@ class NetBoxConfigurationSerializer(NetBoxModelSerializer):
 
 class NestedNetBoxConfigurationSerializer(WritableNestedSerializer):
     url = serializers.HyperlinkedIdentityField(
-        view_name="plugins-api:netbox_cloud_pilot-api:netboxconfiguration-detail"
+        view_name="plugins-api:netbox_paas-api:netboxconfiguration-detail"
     )
 
     class Meta:
@@ -64,7 +64,7 @@ class NestedNetBoxConfigurationSerializer(WritableNestedSerializer):
 
 
 class NetBoxDBBackupSerializer(NetBoxModelSerializer):
-    url = serializers.HyperlinkedIdentityField(view_name="plugins-api:netbox_cloud_pilot-api:netboxdbbackup-detail")
+    url = serializers.HyperlinkedIdentityField(view_name="plugins-api:netbox_paas-api:netboxdbbackup-detail")
 
     netbox_env = NestedNetBoxConfigurationSerializer()
 

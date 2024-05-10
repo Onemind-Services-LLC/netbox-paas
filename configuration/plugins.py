@@ -5,9 +5,9 @@
 # See https://github.com/netbox-community/netbox-docker/wiki/Using-Netbox-Plugins
 
 PLUGINS = [
-    "netbox_cloud_pilot",
+    "netbox_paas",
 ]
 
 PLUGINS_CONFIG = {  # type: ignore
-    "netbox_cloud_pilot": {},
+    "netbox_paas": {},
 }

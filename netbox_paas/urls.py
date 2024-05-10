@@ -3,7 +3,7 @@ from django.urls import include, path
 from utilities.urls import get_model_urls
 from . import views
 
-app_name = "netbox_cloud_pilot"
+app_name = "netbox_paas"
 
 urlpatterns = (
     # Configurations

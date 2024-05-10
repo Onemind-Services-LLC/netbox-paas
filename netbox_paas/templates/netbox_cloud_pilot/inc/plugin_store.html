@@ -35,28 +35,28 @@
             {% if plugin.installed %}
                 {% if plugin.disabled %}
                     <a class="btn btn-sm btn-success"
-                       href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_plugin_enable' pk=object.pk %}?name={{ plugin_name }}&return_url={{ request.path }}">
+                       href="{% url 'plugins:netbox_paas:netboxconfiguration_plugin_enable' pk=object.pk %}?name={{ plugin_name }}&return_url={{ request.path }}">
                         <i class="mdi mdi-power-plug"></i> Enable
                     </a>
                 {% else %}
                     <a class="btn btn-sm btn-warning"
-                       href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_plugin_disable' pk=object.pk %}?name={{ plugin_name }}&return_url={{ request.path }}">
+                       href="{% url 'plugins:netbox_paas:netboxconfiguration_plugin_disable' pk=object.pk %}?name={{ plugin_name }}&return_url={{ request.path }}">
                         <i class="mdi mdi-power-sleep"></i> Disable
                     </a>
                 {% endif %}
 
                 <a class="btn btn-sm btn-cyan"
-                   href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_plugin_install' pk=object.pk %}?name={{ plugin_name }}&version={{ plugin.current_version }}&type=update&return_url={{ request.path }}">
+                   href="{% url 'plugins:netbox_paas:netboxconfiguration_plugin_install' pk=object.pk %}?name={{ plugin_name }}&version={{ plugin.current_version }}&type=update&return_url={{ request.path }}">
                     <i class="mdi mdi-cog"></i> Configure
                 </a>
 
                 <a class="btn btn-sm btn-danger"
-                   href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_plugin_uninstall' pk=object.pk %}?name={{ plugin_name }}&return_url={{ request.path }}">
+                   href="{% url 'plugins:netbox_paas:netboxconfiguration_plugin_uninstall' pk=object.pk %}?name={{ plugin_name }}&return_url={{ request.path }}">
                     <i class="mdi mdi-trash-can-outline"></i> Uninstall
                 </a>
             {% else %}
                 <a class="btn btn-sm btn-primary"
-                   href="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_plugin_install' pk=object.pk %}?name={{ plugin_name }}&type=install&return_url={{ request.path }}">
+                   href="{% url 'plugins:netbox_paas:netboxconfiguration_plugin_install' pk=object.pk %}?name={{ plugin_name }}&type=install&return_url={{ request.path }}">
                     <i class="mdi mdi-plus-thick"></i> Install
                 </a>
             {% endif %}

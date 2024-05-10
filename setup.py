@@ -8,13 +8,13 @@ with open(readme) as fh:
     long_description = fh.read()
 
 setup(
-    name="netbox-cloud-pilot",
-    version="0.1.20",
+    name="netbox-paas",
+    version="0.2.0",
     description="Enhances NetBox on CloudMyDC's VAP with advanced management and control features.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/Onemind-Services-LLC/netbox-cloud-pilot/",
-    download_url="https://github.com/Onemind-Services-LLC/netbox-cloud-pilot/",
+    url="https://github.com/Onemind-Services-LLC/netbox-paas/",
+    download_url="https://github.com/Onemind-Services-LLC/netbox-paas/",
     author="Abhimanyu Saharan",
     author_email="asaharan@onemindservices.com",
     maintainer="Abhimanyu Saharan",
