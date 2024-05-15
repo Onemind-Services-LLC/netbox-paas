@@ -17,6 +17,7 @@ from jelastic.api.exceptions import JelasticApiError
 import json
 from netbox.models import ChangeLoggedModel, PrimaryModel
 from netbox.models.features import JobsMixin
+from taggit.managers import TaggableManager
 from .constants import (
     NETBOX_SUPERUSER_SETTINGS,
     NETBOX_SETTINGS,
@@ -52,7 +53,10 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
         null=True,
     )
 
-    tags = None
+    tags = TaggableManager(
+        through='extras.TaggedItem',
+        related_name='netbox_cloud_pilot_netboxconfigurations',
+    )
 
     class Meta:
         verbose_name = "NetBox Configuration"
@@ -238,7 +242,7 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
 
 class NetBoxDBBackup(ChangeLoggedModel):
     netbox_env = models.ForeignKey(
-        to="netbox_paas.NetBoxConfiguration",
+        to="netbox_cloud_pilot.NetBoxConfiguration",
         on_delete=models.CASCADE,
         related_name="db_backups",
         verbose_name="NetBox Environment",
@@ -263,7 +267,7 @@ class NetBoxDBBackup(ChangeLoggedModel):
         verbose_name_plural = "NetBox DB Backups"
 
     def get_absolute_url(self):
-        return reverse("plugins:netbox_paas:netboxdbbackup", args=[self.pk])
+        return reverse("plugins:netbox_cloud_pilot:netboxdbbackup", args=[self.pk])
 
     def __str__(self):
         return self.crontab
