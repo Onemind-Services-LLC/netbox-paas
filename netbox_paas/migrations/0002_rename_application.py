@@ -48,14 +48,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AlterField(
-            model_name='netboxdbbackup',
-            name='netbox_env',
-            field=models.ForeignKey(
-                on_delete=django.db.models.deletion.CASCADE,
-                related_name='db_backups',
-                to='netbox_paas.netboxconfiguration',
-            ),
-        ),
         migrations.RunPython(migrate_models),
     ]
