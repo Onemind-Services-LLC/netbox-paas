@@ -12,7 +12,6 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinLengthValidator, MaxLengthValidator
 from django.db import models
 from django.urls import reverse
-from django.utils.text import slugify
 from jelastic.api.exceptions import JelasticApiError
 
 import json
@@ -52,6 +51,8 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
         blank=True,
         null=True,
     )
+
+    tags = None
 
     class Meta:
         verbose_name = "NetBox Configuration"

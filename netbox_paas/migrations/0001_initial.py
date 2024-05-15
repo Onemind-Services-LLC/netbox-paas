@@ -43,7 +43,7 @@ class Migration(migrations.Migration):
                 ('last_updated', models.DateTimeField(auto_now=True, null=True)),
                 ('crontab', models.CharField(default='@daily', max_length=255)),
                 ('keep_backups', models.PositiveIntegerField(default=1)),
-                ('netbox_env', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='db_backups', to='netbox_paas.netboxconfiguration')),
+                ('netbox_env', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='db_backups', to='netbox_cloud_pilot.netboxconfiguration')),
             ],
             options={
                 'verbose_name': 'NetBox DB Backup',
