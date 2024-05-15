@@ -12,12 +12,12 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinLengthValidator, MaxLengthValidator
 from django.db import models
 from django.urls import reverse
-from django.utils.text import slugify
 from jelastic.api.exceptions import JelasticApiError
 
 import json
 from netbox.models import ChangeLoggedModel, PrimaryModel
 from netbox.models.features import JobsMixin
+from taggit.managers import TaggableManager
 from .constants import (
     NETBOX_SUPERUSER_SETTINGS,
     NETBOX_SETTINGS,
@@ -51,6 +51,11 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
         validators=[MinLengthValidator(40), MaxLengthValidator(93)],
         blank=True,
         null=True,
+    )
+
+    tags = TaggableManager(
+        through='extras.TaggedItem',
+        related_name='netbox_cloud_pilot_netboxconfigurations',
     )
 
     class Meta:
