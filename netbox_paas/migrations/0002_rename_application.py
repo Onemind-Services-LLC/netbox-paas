@@ -19,20 +19,25 @@ def migrate_models(apps, schema_editor):
     for old_instance in OldModel1.objects.all():
         new_instance = NewModel1(
             id=old_instance.id,
-            name=old_instance.name,
-            netbox_url=old_instance.netbox_url,
-            netbox_token=old_instance.netbox_token,
-            env_name=old_instance.env_name,
+            key=old_instance.key,
+            env_name_storage=old_instance.env_name_storage,
+            license=old_instance.license,
+            description=old_instance.description,
+            created=old_instance.created,
+            last_updated=old_instance.last_updated,
+            custom_field_data=old_instance.custom_field_data,
+            comments=old_instance.comments,
         )
         new_instance.save()
 
     for old_instance in OldModel2.objects.all():
         new_instance = NewModel2(
             id=old_instance.id,
-            netbox_env_id=old_instance.netbox_env_id,
-            backup_name=old_instance.backup_name,
-            backup_url=old_instance.backup_url,
-            backup_date=old_instance.backup_date,
+            created=old_instance.created,
+            last_updated=old_instance.last_updated,
+            crontab=old_instance.crontab,
+            keep_backups=old_instance.keep_backups,
+            netbox_env=old_instance.netbox_env,
         )
         new_instance.save()
 
