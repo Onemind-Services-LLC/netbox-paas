@@ -1,8 +1,8 @@
 from extras.plugins import PluginMenu
-from extras.plugins import PluginMenuButton, PluginMenuItem
+from extras.plugins import PluginMenuItem
 
 menu = PluginMenu(
-    label="Netbox Cloud Pilot",
+    label="Netbox PAAS",
     icon_class="mdi mdi-cloud",
     groups=(
         (
