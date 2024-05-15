@@ -37,7 +37,7 @@ def migrate_models(apps, schema_editor):
             last_updated=old_instance.last_updated,
             crontab=old_instance.crontab,
             keep_backups=old_instance.keep_backups,
-            netbox_env=old_instance.netbox_env,
+            netbox_env_id=old_instance.netbox_env.id,
         )
         new_instance.save()
 

@@ -236,7 +236,7 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
 
 class NetBoxDBBackup(ChangeLoggedModel):
     netbox_env = models.ForeignKey(
-        to="netbox_paas.NetBoxConfiguration",
+        to=NetBoxConfiguration,
         on_delete=models.CASCADE,
         related_name="db_backups",
         verbose_name="NetBox Environment",
