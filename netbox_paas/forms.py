@@ -2,6 +2,7 @@ import requests
 from django import forms
 from django.conf import settings
 from django.forms import ValidationError
+from django.utils.translation import gettext as _
 
 from netbox.forms import NetBoxModelForm
 from utilities.forms import BootstrapMixin, ConfirmationForm as _ConfirmationForm
@@ -61,8 +62,8 @@ class NetBoxConfigurationForm(NetBoxModelForm):
 
     fieldsets = (
         (None, ("key", "description")),
-        ("Backup", ("env_name_storage",)),
-        ("Enterprise", ("license",)),
+        (_("Backup"), ("env_name_storage",)),
+        (_("Enterprise"), ("license",)),
     )
 
     class Meta:
@@ -295,7 +296,7 @@ class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
 
     fieldsets = (
         (None, ("name", "version")),
-        ("Configuration", ("configuration",)),
+        (_("Configuration"), ("configuration",)),
     )
 
     class Meta:
