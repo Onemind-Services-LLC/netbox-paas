@@ -18,7 +18,7 @@ from netbox.config import get_config
 from . import utils
 from .constants import JELASTIC_API, NODE_GROUP_CP, NODE_GROUP_SQLDB, DISABLED_PLUGINS_FILE_NAME, PLUGINS_FILE_NAME
 
-logger = logging.getLogger("netbox_cloud_pilot")
+logger = logging.getLogger("netbox_paas")
 
 __all__ = (
     "IaaS",

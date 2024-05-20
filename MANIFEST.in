@@ -1,2 +1,2 @@
 include README.md
-recursive-include netbox_cloud_pilot/templates *
+recursive-include netbox_paas/templates *

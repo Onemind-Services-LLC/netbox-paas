@@ -2,7 +2,7 @@ from netbox.api.routers import NetBoxRouter
 
 from . import views
 
-app_name = "netbox_cloud_pilot"
+app_name = "netbox_paas"
 
 router = NetBoxRouter()
 router.register("configurations", views.NetBoxConfigurationViewSet)
