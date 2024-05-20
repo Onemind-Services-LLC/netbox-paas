@@ -9,7 +9,7 @@ with open(readme) as fh:
 
 setup(
     name="netbox-paas",
-    version="0.2.0",
+    version="0.3.0",
     description="Enhances NetBox on CloudMyDC's VAP with advanced management and control features.",
     long_description=long_description,
     long_description_content_type="text/markdown",
