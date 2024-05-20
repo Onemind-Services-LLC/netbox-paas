@@ -24,7 +24,8 @@ NetBox PaaS integrates several key features:
 | NetBox Version | Plugin Version |
 |----------------|----------------|
 | v3.5.x         | v0.0.x         |
-| v3.6.x         | v0.1.x         |
+| v3.6.x         | v0.2.x         |
+| v3.7.x         | v0.3.x         |
 
 # Installation
 

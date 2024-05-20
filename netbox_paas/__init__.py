@@ -14,8 +14,8 @@ class NetBoxPaas(PluginConfig):
     author = metadata.get("Author")
     author_email = metadata.get("Author-email")
     base_url = "paas"
-    min_version = "3.6.0"
-    max_version = "3.6.99"
+    min_version = "3.7.0"
+    max_version = "3.7.99"
 
     def ready(self):
         super().ready()
