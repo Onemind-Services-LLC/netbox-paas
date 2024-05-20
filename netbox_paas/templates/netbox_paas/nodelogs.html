@@ -9,7 +9,7 @@
                 <div class="card-header">
                     <div class="float-end">
                         <form
-                                action="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_logs' pk=object.pk %}"
+                                action="{% url 'plugins:netbox_paas:netboxconfiguration_logs' pk=object.pk %}"
                                 method="post"
                         >
                             {% csrf_token %}

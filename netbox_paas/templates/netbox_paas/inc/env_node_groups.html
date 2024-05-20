@@ -53,7 +53,7 @@
                                 <button
                                         type="submit"
                                         class="btn btn-sm btn-danger"
-                                        formaction="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_restart' pk=object.pk %}"
+                                        formaction="{% url 'plugins:netbox_paas:netboxconfiguration_restart' pk=object.pk %}"
                                 >
                                     <i class="mdi mdi-restart"></i> Restart
                                 </button>
@@ -61,7 +61,7 @@
                                 <button
                                         type="submit"
                                         class="btn btn-sm btn-primary"
-                                        formaction="{% url 'plugins:netbox_cloud_pilot:netboxconfiguration_logs' pk=object.pk %}"
+                                        formaction="{% url 'plugins:netbox_paas:netboxconfiguration_logs' pk=object.pk %}"
 
                                 >
                                     <i class="mdi mdi-file-document-outline"></i> Logs

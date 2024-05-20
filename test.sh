@@ -9,14 +9,14 @@ doco="docker compose --file docker-compose.yml"
 
 test_netbox_unit_tests() {
   echo "⏱  Running NetBox Unit Tests"
-  $doco run --rm netbox python manage.py test netbox_cloud_pilot
+  $doco run --rm netbox python manage.py test netbox_paas
 }
 
 test_cleanup() {
   echo "💣  Cleaning Up"
   $doco down -v
   $doco rm -fsv
-  docker image rm docker.io/library/netbox-cloud-pilot-netbox || echo ''
+  docker image rm docker.io/library/netbox-paas-netbox || echo ''
 }
 
 echo "🐳🐳🐳  Start testing'"

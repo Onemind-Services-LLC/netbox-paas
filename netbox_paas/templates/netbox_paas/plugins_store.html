@@ -15,21 +15,21 @@
                 <h3>Installed Plugins</h3>
                 <hr>
                 {% for plugin_name, plugin in plugins.installed.items %}
-                    {% include 'netbox_cloud_pilot/inc/plugin_store.html' with plugin_name=plugin_name plugin=plugin %}
+                    {% include 'netbox_paas/inc/plugin_store.html' with plugin_name=plugin_name plugin=plugin %}
                 {% endfor %}
             </div>
             <div class="row mb-3">
                 <h3>Subscription Store</h3>
                 <hr>
                 {% for plugin_name, plugin in plugins.not_installed.subscription.items %}
-                    {% include 'netbox_cloud_pilot/inc/plugin_store.html' with plugin_name=plugin_name plugin=plugin %}
+                    {% include 'netbox_paas/inc/plugin_store.html' with plugin_name=plugin_name plugin=plugin %}
                 {% endfor %}
             </div>
             <div class="row mb-3">
                 <h3>Community Store</h3>
                 <hr>
                 {% for plugin_name, plugin in plugins.not_installed.community.items %}
-                    {% include 'netbox_cloud_pilot/inc/plugin_store.html' with plugin_name=plugin_name plugin=plugin %}
+                    {% include 'netbox_paas/inc/plugin_store.html' with plugin_name=plugin_name plugin=plugin %}
                 {% endfor %}
             </div>
         {% endblock %}

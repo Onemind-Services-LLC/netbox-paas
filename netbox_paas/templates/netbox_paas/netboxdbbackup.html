@@ -4,7 +4,7 @@
 {% block extra_controls %}
     <form method="post">
         {% csrf_token %}
-        <button formaction="{% url 'plugins:netbox_cloud_pilot:netboxdbbackup_backup' pk=object.pk %}"
+        <button formaction="{% url 'plugins:netbox_paas:netboxdbbackup_backup' pk=object.pk %}"
                 class="btn btn-sm btn-primary">
             <span class="mdi mdi-download-outline" aria-hidden="true"></span> Backup Now
         </button>
