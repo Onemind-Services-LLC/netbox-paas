@@ -1,8 +1,8 @@
 # NetBox PaaS
 
 [NetBox PaaS](https://github.com/Onemind-Services-LLC/netbox-paas) is a specialized plugin tailored for
-NetBox, offering enhanced functionality for users on the
-[CloudMyDC public Cloud platform (VAP)](https://app.xapp.cloudmydc.com/). This plugin simplifies the management of
+NetBox, offering enhanced functionality for users on
+[CloudMyDC PaaS](https://app.xapp.cloudmydc.com/). This plugin simplifies the management of
 various NetBox components and infrastructure, streamlining processes and offering a more integrated experience.
 
 NetBox PaaS, developed and maintained by [Onemind Services LLC](https://onemindservices.com/), introduces an
