@@ -24,9 +24,6 @@ class NetBoxConfigurationSerializer(NetBoxModelSerializer):
     env_name = serializers.CharField(
         read_only=True,
     )
-    is_enterprise = serializers.BooleanField(
-        read_only=True,
-    )
     key = serializers.CharField(
         write_only=True,
     )
@@ -40,7 +37,6 @@ class NetBoxConfigurationSerializer(NetBoxModelSerializer):
             "display",
             "env_name",
             "env_name_storage",
-            "is_enterprise",
             "license",
             "key",
             "description",
@@ -56,7 +52,7 @@ class NestedNetBoxConfigurationSerializer(WritableNestedSerializer):
 
     class Meta:
         model = NetBoxConfiguration
-        fields = ("id", "url", "display", "env_name", "env_name_storage", "is_enterprise")
+        fields = ("id", "url", "display", "env_name", "env_name_storage")
 
 
 class NetBoxDBBackupSerializer(NetBoxModelSerializer):
