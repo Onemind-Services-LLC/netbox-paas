@@ -23,7 +23,7 @@ from .constants import (
     NODE_GROUP_SQLDB,
     NODE_GROUP_CP,
 )
-from .iaas import *
+from .paas import *
 
 __all__ = ("NetBoxConfiguration", "NetBoxDBBackup")
 
