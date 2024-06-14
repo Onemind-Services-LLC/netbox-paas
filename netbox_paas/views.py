@@ -49,10 +49,10 @@ class NetBoxNodeLog(PermissionRequiredMixin, View):
         env_name = request.POST.get("env_name")
         node_id = request.POST.get("node_id")
 
-        iaas = instance.iaas(env_name)
+        paas = instance.paas(env_name)
 
-        node = iaas.get_node(node_id)
-        logs = iaas.get_node_log(node_id)
+        node = paas.get_node(node_id)
+        logs = paas.get_node_log(node_id)
         return render(
             request,
             "netbox_paas/nodelogs.html",
@@ -126,7 +126,7 @@ class NetBoxRestartView(PermissionRequiredMixin, View):
         env_name = request.POST.get("env_name")
         node_group = request.POST.get("node_group")
         job = instance.enqueue(
-            instance.iaas(env_name, auto_init=False).restart_nodes,
+            instance.paas(env_name, auto_init=False).restart_nodes,
             request,
             node_groups=[node_group],
         )
@@ -168,7 +168,7 @@ class NetBoxStorageView(PermissionRequiredMixin, GetReturnURLMixin, View):
 
             # Deploy a new environment for backup-storage
             job = obj.enqueue(
-                obj.iaas(env_name, auto_init=False).client.marketplace.App.Install,
+                obj.paas(env_name, auto_init=False).client.marketplace.App.Install,
                 request,
                 id="wp-restore",
                 env_name=env_name,

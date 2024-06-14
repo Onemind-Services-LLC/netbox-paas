@@ -21,8 +21,8 @@ from .constants import JELASTIC_API, NODE_GROUP_CP, NODE_GROUP_SQLDB, DISABLED_P
 logger = logging.getLogger("netbox_paas")
 
 __all__ = (
-    "IaaS",
-    "IaaSNetBox",
+    "PaaS",
+    "PaaSNetBox",
 )
 
 
@@ -92,7 +92,7 @@ class RequirementsParser:
         return "\n".join([str(r.line) for r in self.requirements])
 
 
-class IaaSJob:
+class PaaSJob:
     @classmethod
     def enqueue(cls, func, model, request=None, *args, **kwargs):
         """
@@ -136,9 +136,9 @@ class IaaSJob:
         job.save()
 
 
-class IaaS(IaaSJob):
+class PaaS(PaaSJob):
     """
-    This class is used to manage the IaaS layer of the Jelastic platform.
+    This class is used to manage the PaaS layer of the Jelastic platform.
     """
 
     def __init__(self, token: str, env_name: str, auto_init: bool = True):
@@ -148,7 +148,7 @@ class IaaS(IaaSJob):
 
         if auto_init:
             self._get_env_info()
-        logger.debug(f"IaaS layer initialized for environment {self.env_name}")
+        logger.debug(f"PaaS layer initialized for environment {self.env_name}")
 
     @lru_cache(maxsize=1)
     def _get_env_info(self):
@@ -451,9 +451,9 @@ class IaaS(IaaSJob):
         return [action for action in actions if action.get("text", {}).get("env") == self.env_name]
 
 
-class IaaSNetBox(IaaS):
+class PaaSNetBox(PaaS):
     """
-    This class is used to manage the IaaS layer of the Jelastic platform for NetBox.
+    This class is used to manage the PaaS layer of the Jelastic platform for NetBox.
     """
 
     NETBOX_DIR = '/etc/netbox'
