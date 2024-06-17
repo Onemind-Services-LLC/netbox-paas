@@ -1,7 +1,8 @@
 from django import forms
-
+from django.contrib.postgres.forms import SimpleArrayField
 from extras.constants import DEFAULT_DASHBOARD
 from utilities.forms import BOOLEAN_WITH_BLANK_CHOICES
+
 from .nb_settings import *
 
 JELASTIC_API = "https://app.xapp.cloudmydc.com"
@@ -361,6 +362,8 @@ NETBOX_SETTINGS = NbSettings(
                     help_text="List of allowed URL schemes",
                     placeholder="http, https",
                     required=False,
+                    field=SimpleArrayField,
+                    field_kwargs={'base_field': forms.CharField()}
                 ),
                 Param(
                     key="AUTH_PASSWORD_VALIDATORS",

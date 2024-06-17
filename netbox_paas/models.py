@@ -1,4 +1,5 @@
 import ast
+import json
 import logging
 import os
 import re
@@ -13,10 +14,9 @@ from django.core.validators import MinLengthValidator, MaxLengthValidator
 from django.db import models
 from django.urls import reverse
 from jelastic.api.exceptions import JelasticApiError
-
-import json
 from netbox.models import ChangeLoggedModel, PrimaryModel
 from netbox.models.features import JobsMixin
+
 from .constants import (
     NETBOX_SUPERUSER_SETTINGS,
     NETBOX_SETTINGS,
@@ -194,12 +194,7 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
                             file_content += f"{key} = {ast.literal_eval(value)}\n"
                         except (ValueError, SyntaxError):
                             if isinstance(value, str):
-                                # Check if the string is comma-separated, convert to tuple
-                                if "," in value:
-                                    items = [item.strip() for item in value.split(",")]
-                                    file_content += f"{key} = {tuple(items)}\n"
-                                else:
-                                    file_content += f"{key} = '{value}'\n"
+                                file_content += f"{key} = '{value}'\n"
                             else:
                                 file_content += f"{key} = {value}\n"
 
