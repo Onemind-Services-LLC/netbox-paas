@@ -239,8 +239,6 @@ class NetBoxDBBackupForm(NetBoxModelForm):
         required=False,
     )
 
-    tags = None
-
     fieldsets = (
         (None, ("netbox_env", "db_password")),
         ("Backup", ("crontab", "keep_backups")),

@@ -10,7 +10,7 @@ with open(readme) as fh:
 setup(
     name="netbox-paas",
     version="0.3.0",
-    description="Enhances NetBox on CloudMyDC's VAP with advanced management and control features.",
+    description="Enhances NetBox on CloudMyDC's PaaS with advanced management and control features.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Onemind-Services-LLC/netbox-paas/",
