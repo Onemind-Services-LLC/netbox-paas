@@ -85,7 +85,7 @@ class NetBoxConfigurationForm(NetBoxModelForm):
             self.fields["env_name_storage"].initial = self.instance.env_name_storage
 
             env_infos = (
-                self.instance.iaas(self.instance.env_name, auto_init=False)
+                self.instance.paas(self.instance.env_name, auto_init=False)
                 .client.environment.Control.GetEnvs()
                 .get("infos", [])
             )
@@ -206,7 +206,7 @@ class NetBoxBackupStorageForm(BootstrapMixin, forms.Form):
 
         # Fetch the region list and build the choices
         nc = NetBoxConfiguration.objects.first()
-        regions = nc.iaas(nc.env_name, auto_init=False).client.environment.Control.GetRegions().get("array", [])
+        regions = nc.paas(nc.env_name, auto_init=False).client.environment.Control.GetRegions().get("array", [])
         self.fields["region"].choices = [
             (hard_node_group["uniqueName"], region["displayName"])
             for region in regions
