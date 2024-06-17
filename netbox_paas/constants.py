@@ -1,4 +1,5 @@
 from django import forms
+from django.contrib.postgres.forms.array import SimpleArrayField
 
 from extras.constants import DEFAULT_DASHBOARD
 from utilities.forms import BOOLEAN_WITH_BLANK_CHOICES
@@ -31,7 +32,9 @@ NETBOX_SETTINGS = NbSettings(
                     key="ALLOWED_HOSTS",
                     label="Allowed Hosts",
                     help_text="Comma separated list of allowed hosts (FQDN, IP address, or pattern), or '*' for all",
-                    placeholder="netbox.example.com, localhost",
+                    placeholder="netbox.example.com, localhost, *",
+                    field=SimpleArrayField,
+                    field_kwargs={'base_field': forms.CharField()},
                 ),
                 Param(
                     key="DB_CONN_MAX_AGE",
@@ -361,6 +364,8 @@ NETBOX_SETTINGS = NbSettings(
                     help_text="List of allowed URL schemes",
                     placeholder="http, https",
                     required=False,
+                    field=SimpleArrayField,
+                    field_kwargs={'base_field': forms.CharField()}
                 ),
                 Param(
                     key="AUTH_PASSWORD_VALIDATORS",
@@ -405,15 +410,19 @@ NETBOX_SETTINGS = NbSettings(
                     key="CORS_ORIGIN_REGEX_WHITELIST",
                     label="CORS Origin Regex Whitelist",
                     help_text="List of CORS origin regex patterns",
-                    placeholder="[]",
+                    placeholder="https://*.example.com, https://hostname.example.com",
                     required=False,
+                    field=SimpleArrayField,
+                    field_kwargs={'base_field': forms.CharField()},
                 ),
                 Param(
                     key="CORS_ORIGIN_WHITELIST",
                     label="CORS Origin Whitelist",
                     help_text="List of CORS origins",
-                    placeholder="[]",
+                    placeholder="https://*.example.com, https://hostname.example.com",
                     required=False,
+                    field=SimpleArrayField,
+                    field_kwargs={'base_field': forms.CharField()},
                 ),
                 Param(
                     key="CSRF_COOKIE_NAME",
@@ -438,8 +447,10 @@ NETBOX_SETTINGS = NbSettings(
                     key="CSRF_TRUSTED_ORIGINS",
                     label="CSRF Trusted Origins",
                     help_text="List of trusted origins for CSRF",
-                    placeholder="[]",
+                    placeholder="https://*.example.com, https://hostname.example.com",
                     required=False,
+                    field=SimpleArrayField,
+                    field_kwargs={'base_field': forms.CharField()},
                 ),
                 Param(
                     key="LOGIN_PERSISTENCE",
@@ -496,6 +507,7 @@ NETBOX_SETTINGS = NbSettings(
                     placeholder="[]",
                     required=False,
                     field_kwargs={"widget": forms.Textarea(attrs={"class": "vLargeTextField"})},
+
                 ),
                 Param(
                     key="FIELD_CHOICES",
