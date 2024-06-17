@@ -194,10 +194,10 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
                             file_content += f"{key} = {ast.literal_eval(value)}\n"
                         except (ValueError, SyntaxError):
                             if isinstance(value, str):
-                                # Check if the string is comma-separated, convert to list
+                                # Check if the string is comma-separated, convert to tuple
                                 if "," in value:
                                     items = [item.strip() for item in value.split(",")]
-                                    file_content += f"{key} = {list(items)}\n"
+                                    file_content += f"{key} = {tuple(items)}\n"
                                 else:
                                     file_content += f"{key} = '{value}'\n"
                             else:
