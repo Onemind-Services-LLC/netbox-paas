@@ -365,7 +365,7 @@ NETBOX_SETTINGS = NbSettings(
                     placeholder="http, https",
                     required=False,
                     field=SimpleArrayField,
-                    field_kwargs={'base_field': forms.CharField()},
+                    field_kwargs={'base_field': forms.CharField()}
                 ),
                 Param(
                     key="AUTH_PASSWORD_VALIDATORS",
@@ -507,6 +507,7 @@ NETBOX_SETTINGS = NbSettings(
                     placeholder="[]",
                     required=False,
                     field_kwargs={"widget": forms.Textarea(attrs={"class": "vLargeTextField"})},
+
                 ),
                 Param(
                     key="FIELD_CHOICES",
