@@ -1,4 +1,5 @@
 import ast
+import json
 import logging
 import os
 import re
@@ -13,10 +14,9 @@ from django.core.validators import MinLengthValidator, MaxLengthValidator
 from django.db import models
 from django.urls import reverse
 from jelastic.api.exceptions import JelasticApiError
-
-import json
 from netbox.models import ChangeLoggedModel, PrimaryModel
 from netbox.models.features import JobsMixin
+
 from .constants import (
     NETBOX_SUPERUSER_SETTINGS,
     NETBOX_SETTINGS,
