@@ -101,7 +101,7 @@ class NetBoxConfigurationForm(NetBoxModelForm):
             ]
 
 
-class NetBoxSettingsForm( forms.Form):
+class NetBoxSettingsForm(forms.Form):
     fieldsets = create_fieldset()
 
     class Meta:
@@ -153,7 +153,7 @@ class NetBoxSettingsForm( forms.Form):
         return data
 
 
-class NetBoxBackupStorageForm( forms.Form):
+class NetBoxBackupStorageForm(forms.Form):
     deployment = forms.ChoiceField(
         choices=(
             ("standalone", "Standalone"),
@@ -272,7 +272,7 @@ class NetBoxDBBackupForm(NetBoxModelForm):
             raise ValidationError({"db_password": "This field is required when adding a new backup."})
 
 
-class NetBoxPluginInstallForm( forms.Form):
+class NetBoxPluginInstallForm(forms.Form):
     name = forms.CharField(
         label="Plugin Name",
         help_text="Name of the plugin to install.",
@@ -372,7 +372,7 @@ class NetBoxPluginInstallForm( forms.Form):
             raise ValidationError({"configuration": f"Missing required settings: {', '.join(required_settings)}"})
 
 
-class NetBoxUpgradeForm( forms.Form):
+class NetBoxUpgradeForm(forms.Form):
     version = forms.ChoiceField(
         label="Version",
         help_text="Version to upgrade to.",
