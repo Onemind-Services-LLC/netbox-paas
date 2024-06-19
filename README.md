@@ -26,6 +26,7 @@ NetBox PaaS integrates several key features:
 | v3.5.x         | v0.0.x         |
 | v3.6.x         | v0.2.x         |
 | v3.7.x         | v0.3.x         |
+| v4.0.x         | v0.4.x         |
 
 # Installation
 

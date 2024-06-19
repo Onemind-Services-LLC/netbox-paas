@@ -1,7 +1,7 @@
 import os
 from importlib.metadata import metadata
 
-from extras.plugins import PluginConfig
+from netbox.plugins import PluginConfig
 
 metadata = metadata("netbox_paas")
 
@@ -14,8 +14,8 @@ class NetBoxPaas(PluginConfig):
     author = metadata.get("Author")
     author_email = metadata.get("Author-email")
     base_url = "paas"
-    min_version = "3.7.0"
-    max_version = "3.7.99"
+    min_version = "4.0.0"
+    max_version = "4.0.99"
 
     def ready(self):
         super().ready()
