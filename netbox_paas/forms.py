@@ -5,7 +5,7 @@ from django.forms import ValidationError
 from django.utils.translation import gettext as _
 
 from netbox.forms import NetBoxModelForm
-from utilities.forms import BootstrapMixin, ConfirmationForm as _ConfirmationForm
+from utilities.forms import ConfirmationForm as _ConfirmationForm
 from utilities.forms.fields import CommentField
 from utilities.rqworker import get_workers_for_queue
 from .constants import NETBOX_SETTINGS, NODE_GROUP_SQLDB, DISABLED_PLUGINS_FILE_NAME
@@ -85,7 +85,7 @@ class NetBoxConfigurationForm(NetBoxModelForm):
             self.fields["env_name_storage"].initial = self.instance.env_name_storage
 
             env_infos = (
-                self.instance.iaas(self.instance.env_name, auto_init=False)
+                self.instance.paas(self.instance.env_name, auto_init=False)
                 .client.environment.Control.GetEnvs()
                 .get("infos", [])
             )
@@ -101,7 +101,7 @@ class NetBoxConfigurationForm(NetBoxModelForm):
             ]
 
 
-class NetBoxSettingsForm(BootstrapMixin, forms.Form):
+class NetBoxSettingsForm(forms.Form):
     fieldsets = create_fieldset()
 
     class Meta:
@@ -153,7 +153,7 @@ class NetBoxSettingsForm(BootstrapMixin, forms.Form):
         return data
 
 
-class NetBoxBackupStorageForm(BootstrapMixin, forms.Form):
+class NetBoxBackupStorageForm(forms.Form):
     deployment = forms.ChoiceField(
         choices=(
             ("standalone", "Standalone"),
@@ -206,7 +206,7 @@ class NetBoxBackupStorageForm(BootstrapMixin, forms.Form):
 
         # Fetch the region list and build the choices
         nc = NetBoxConfiguration.objects.first()
-        regions = nc.iaas(nc.env_name, auto_init=False).client.environment.Control.GetRegions().get("array", [])
+        regions = nc.paas(nc.env_name, auto_init=False).client.environment.Control.GetRegions().get("array", [])
         self.fields["region"].choices = [
             (hard_node_group["uniqueName"], region["displayName"])
             for region in regions
@@ -238,8 +238,6 @@ class NetBoxDBBackupForm(NetBoxModelForm):
         help_text="Password for the <strong>webadmin</strong> user. You will find this in your email.",
         required=False,
     )
-
-    tags = None
 
     fieldsets = (
         (None, ("netbox_env", "db_password")),
@@ -274,7 +272,7 @@ class NetBoxDBBackupForm(NetBoxModelForm):
             raise ValidationError({"db_password": "This field is required when adding a new backup."})
 
 
-class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
+class NetBoxPluginInstallForm(forms.Form):
     name = forms.CharField(
         label="Plugin Name",
         help_text="Name of the plugin to install.",
@@ -374,7 +372,7 @@ class NetBoxPluginInstallForm(BootstrapMixin, forms.Form):
             raise ValidationError({"configuration": f"Missing required settings: {', '.join(required_settings)}"})
 
 
-class NetBoxUpgradeForm(BootstrapMixin, forms.Form):
+class NetBoxUpgradeForm(forms.Form):
     version = forms.ChoiceField(
         label="Version",
         help_text="Version to upgrade to.",
