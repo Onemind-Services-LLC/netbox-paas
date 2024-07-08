@@ -1,4 +1,5 @@
 import ast
+import json
 import logging
 import os
 import re
@@ -13,17 +14,16 @@ from django.core.validators import MinLengthValidator, MaxLengthValidator
 from django.db import models
 from django.urls import reverse
 from jelastic.api.exceptions import JelasticApiError
-
-import json
 from netbox.models import ChangeLoggedModel, PrimaryModel
 from netbox.models.features import JobsMixin
+
 from .constants import (
     NETBOX_SUPERUSER_SETTINGS,
     NETBOX_SETTINGS,
     NODE_GROUP_SQLDB,
     NODE_GROUP_CP,
 )
-from .iaas import *
+from .paas import *
 
 __all__ = ("NetBoxConfiguration", "NetBoxDBBackup")
 
@@ -71,7 +71,7 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
             raise ValidationError("There can only be one NetBoxConfiguration instance.")
 
         # Clear any cached values from lru_cache
-        self.iaas.cache_clear()
+        self.paas.cache_clear()
 
         # Environment name must not contain dots
         if "." in self.env_name:
@@ -80,14 +80,14 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
         if self.pk:
             try:
                 # Ensure the provided env_name exists
-                self.iaas(self.env_name)
+                self.paas(self.env_name)
             except JelasticApiError as e:
                 raise ValidationError(e)
 
         if self.env_name_storage:
             try:
                 # Ensure the provided env_name exists
-                self.iaas(self.env_name_storage)
+                self.paas(self.env_name_storage)
             except JelasticApiError as e:
                 raise ValidationError(e)
 
@@ -96,31 +96,31 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
                 raise ValidationError({"license": "Invalid license key"})
 
     @lru_cache(maxsize=2)
-    def iaas(self, env_name, auto_init=True):
-        return IaaSNetBox(
+    def paas(self, env_name, auto_init=True):
+        return PaaSNetBox(
             token=self.key,
             env_name=env_name,
             auto_init=auto_init,
         )
 
     def get_env(self):
-        return self.iaas(self.env_name)
+        return self.paas(self.env_name)
 
     def get_docker_tag(self):
         return self.get_env().get_master_node(NODE_GROUP_CP).get("customitem", {}).get("dockerTag", "")
 
     def get_env_storage(self):
-        return self.iaas(self.env_name_storage)
+        return self.paas(self.env_name_storage)
 
     def netbox_admin(self):
         """
         Returns NetBox administration configuration.
         """
-        iaas = self.get_env()
+        paas = self.get_env()
 
-        result = {"url": iaas.get_url()}
+        result = {"url": paas.get_url()}
         for setting in NETBOX_SUPERUSER_SETTINGS:
-            result[setting] = iaas.get_env_var(setting)
+            result[setting] = paas.get_env_var(setting)
 
         return result
 
@@ -214,7 +214,7 @@ class NetBoxConfiguration(JobsMixin, PrimaryModel):
         self.schedule_restart()
 
     def enqueue(self, func, request, *args, **kwargs):
-        return self.iaas(self.env_name).enqueue(
+        return self.paas(self.env_name).enqueue(
             func,
             self,
             request,
