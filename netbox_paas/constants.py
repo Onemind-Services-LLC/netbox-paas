@@ -35,7 +35,7 @@ NETBOX_SETTINGS = NbSettings(
                     help_text="Comma separated list of allowed hosts (FQDN, IP address, or pattern), or '*' for all",
                     placeholder="netbox.example.com, localhost, *",
                     field=forms.CharField,
-                    field_kwargs={"validators": [validate_comma_separated]}
+                    field_kwargs={"validators": [validate_comma_separated]},
                 ),
                 Param(
                     key="DB_CONN_MAX_AGE",

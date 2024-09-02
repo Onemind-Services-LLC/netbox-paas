@@ -1,8 +1,6 @@
 from django.core.exceptions import ValidationError
 
-__all__ = (
-    'validate_comma_separated',
-)
+__all__ = ('validate_comma_separated',)
 
 
 def validate_comma_separated(value):
