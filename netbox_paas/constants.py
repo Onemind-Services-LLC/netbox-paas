@@ -4,6 +4,7 @@ from django.contrib.postgres.forms.array import SimpleArrayField
 from extras.constants import DEFAULT_DASHBOARD
 from utilities.forms import BOOLEAN_WITH_BLANK_CHOICES
 from .nb_settings import *
+from .validators import validate_comma_separated
 
 JELASTIC_API = "https://app.xapp.cloudmydc.com"
 NETBOX_JPS_REPO = "https://raw.githubusercontent.com/Onemind-Services-LLC/netbox-jps/master"
@@ -33,8 +34,8 @@ NETBOX_SETTINGS = NbSettings(
                     label="Allowed Hosts",
                     help_text="Comma separated list of allowed hosts (FQDN, IP address, or pattern), or '*' for all",
                     placeholder="netbox.example.com, localhost, *",
-                    field=SimpleArrayField,
-                    field_kwargs={'base_field': forms.CharField()},
+                    field=forms.CharField,
+                    field_kwargs={"validators": [validate_comma_separated]},
                 ),
                 Param(
                     key="DB_CONN_MAX_AGE",
