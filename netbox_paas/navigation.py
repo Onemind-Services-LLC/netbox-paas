@@ -1,5 +1,4 @@
-from extras.plugins import PluginMenu
-from extras.plugins import PluginMenuItem
+from netbox.plugins import PluginMenu, PluginMenuItem
 
 menu = PluginMenu(
     label="Netbox PAAS",

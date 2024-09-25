@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.views.generic import View
 
 from netbox.views import generic
-from utilities.utils import normalize_querydict
+from utilities.querydict import normalize_querydict
 from utilities.views import register_model_view, GetReturnURLMixin
 from . import constants, forms, models, tables, utils
 
