@@ -16,6 +16,7 @@ class NetBoxPaas(PluginConfig):
     base_url = "paas"
     min_version = "3.7.0"
     max_version = "3.7.99"
+    django_apps = ["elasticapm.contrib.django"]
 
     def ready(self):
         super().ready()
