@@ -19,7 +19,7 @@ setup(
     author_email="asaharan@onemindservices.com",
     maintainer="Abhimanyu Saharan",
     maintainer_email="asaharan@onemindservices.com",
-    install_requires=["py-jelastic", "croniter<3.0.0", "semver<4.0.0", "requirements-parser"],
+    install_requires=["py-jelastic", "croniter<3.0.0", "semver<4.0.0", "requirements-parser", "elastic-apm"],
     packages=find_packages(),
     include_package_data=True,
     zip_safe=False,
