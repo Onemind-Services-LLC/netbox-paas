@@ -273,14 +273,6 @@ NETBOX_SETTINGS = NbSettings(
                     },
                 ),
                 Param(
-                    key="GIT_PATH",
-                    label="Git Path",
-                    help_text="Path to git executable",
-                    placeholder="/usr/bin/git",
-                    required=False,
-                    initial="/usr/bin/git",
-                ),
-                Param(
                     key="HTTP_PROXIES",
                     label="HTTP Proxies",
                     help_text="Dictionary of HTTP proxies",
